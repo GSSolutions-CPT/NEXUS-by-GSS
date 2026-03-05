@@ -1,0 +1,6 @@
+@ImproBridgeAPI_HostAddress = http://localhost:5010
+
+GET {{ImproBridgeAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
