@@ -1,0 +1,411 @@
+{
+	"info": {
+		"_postman_id": "ca805d21-a471-45b7-b79e-68041d54d4b1",
+		"name": "PortalAPIV5",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "5376749"
+	},
+	"item": [
+		{
+			"name": "Logout",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/xml"
+					},
+					{
+						"key": "name",
+						"value": "sysdba"
+					},
+					{
+						"key": "pswd",
+						"value": "bWFzdGVya2V5"
+					},
+					{
+						"key": "logout",
+						"value": "true",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "https://127.0.0.1/portal/api/xml",
+					"protocol": "https",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"path": [
+						"portal",
+						"api",
+						"xml"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Login",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/xml"
+					},
+					{
+						"key": "name",
+						"value": "sysdba"
+					},
+					{
+						"key": "pswd",
+						"value": "bWFzdGVya2V5"
+					}
+				],
+				"url": {
+					"raw": "https://127.0.0.1/portal/api/xml",
+					"protocol": "https",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"path": [
+						"portal",
+						"api",
+						"xml"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "insertBioTemplate_FullLicenseOnly",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/xml"
+					},
+					{
+						"key": "token",
+						"value": "{{Token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<protocol id=\"82945242\" version=\"1.0\" xsi:schemaLocation=\"http://www.identisoft.net/protocol protocol.xsd\" xmlns=\"http://www.identisoft.net/protocol\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <dbupdate>\r\n    <bioTemplate id=\"0\" btTemplateno=\"0\"  btTemplate=\"0232004B00FF80800288DCC3D1B2ECA6BBCBCDE1D3D3A1BD83A7B5A9C177E868D3CBFA9BDFD006B508CE1AB914C817D21AAD1BB520CD20E597DD189782D5AEC3249F28B531D0C9B97BB686AD2586359B98B2AD9DB982B9A6BB9EDD80D288DF87E987FD82D49EDC94D5AFF58899F87BBFBB9F6505D2A88E3F3164FE0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\">\r\n            <tag id=\"1\"/> \r\n            <bioTemplateFormat id=\"2\"/> \r\n        </bioTemplate>\r\n  </dbupdate>\r\n</protocol>\r\n"
+				},
+				"url": {
+					"raw": "https://127.0.0.1/portal/api/xml",
+					"protocol": "https",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"path": [
+						"portal",
+						"api",
+						"xml"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "insertMasterWithTag",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/xml"
+					},
+					{
+						"key": "token",
+						"value": "{{Token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<protocol id=\"82945242\" version=\"1.0\" xsi:schemaLocation=\"http://www.identisoft.net/protocol protocol.xsd\" xmlns=\"http://www.identisoft.net/protocol\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <dbupdate>\r\n    <Master id=\"0\" current=\"1\" displayName=\"Jon AKA Doe\" mstExpiryDate=\"20201009\" firstName=\"Jon\" gender=\"M\" idnumber=\"11144411\" lastName=\"Doe\" mstStartDate=\"20180919\">\r\n    <tag id=\"0\" tagAccessOverride =\"1\" startTime=\"0\" startDate=\"0\" tagCode=\"11144411\" expiryTime=\"0\" suspendWithAlarm=\"0\" expiryDate=\"0\" report=\"1\" suspend=\"0\" ordinal=\"1\" specialEvent=\"0\" tagCodeUntruncated=\"11144411\">\r\n      <tagType id=\"1\" />\r\n      <tagTypeUntruncated id=\"15\" />\r\n    </tag>\r\n   </Master>\r\n   <withClause>tags</withClause>\r\n  </dbupdate>\r\n</protocol>\r\n"
+				},
+				"url": {
+					"raw": "https://127.0.0.1/portal/api/xml",
+					"protocol": "https",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"path": [
+						"portal",
+						"api",
+						"xml"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "UpdateExistingTag_moveMaster",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/xml"
+					},
+					{
+						"key": "token",
+						"value": "{{Token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<protocol id=\"82945242\" version=\"1.0\" xsi:schemaLocation=\"http://www.identisoft.net/protocol protocol.xsd\" xmlns=\"http://www.identisoft.net/protocol\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <dbupdate>\r\n    <tag id= \"12\" >\r\n    <master id =\"20\"> </master>\r\n    </tag>\r\n  </dbupdate>\r\n</protocol>\r\n"
+				},
+				"url": {
+					"raw": "https://127.0.0.1/portal/api/xml",
+					"protocol": "https",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"path": [
+						"portal",
+						"api",
+						"xml"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "driveAction",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/xml"
+					},
+					{
+						"key": "token",
+						"value": "{{Token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?> \r\n<protocol id=\"4\" version=\"1.0\" xsi:schemaLocation=\"http://www.identisoft.net/protocol protocol.xsd\" xmlns=\"http://www.identisoft.net/protocol\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"> \r\n<iprxmessage command=\"OPEN_DOOR\" fixedadd=\"02010201\" timeout=\"0\" state=\"-1\"/> \r\n</protocol>\r\n"
+				},
+				"url": {
+					"raw": "https://127.0.0.1/portal/api/xml",
+					"protocol": "https",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"path": [
+						"portal",
+						"api",
+						"xml"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "addAccessGroup",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/xml"
+					},
+					{
+						"key": "token",
+						"value": "{{Token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<protocol id=\"82945242\" version=\"1.0\" xsi:schemaLocation=\"http://www.identisoft.net/protocol protocol.xsd\" xmlns=\"http://www.identisoft.net/protocol\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <dbupdate>\r\n    <master id=\"10\">\r\n      <mastergroup id=\"0\">\r\n        <accessgroup id=\"5\" />\r\n      </mastergroup>\r\n    </master>\r\n  </dbupdate>\r\n</protocol>\r\n"
+				},
+				"url": {
+					"raw": "https://127.0.0.1/portal/api/xml",
+					"protocol": "https",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"path": [
+						"portal",
+						"api",
+						"xml"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "addMasterDetail",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/xml"
+					},
+					{
+						"key": "token",
+						"value": "{{Token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<protocol id=\"82945242\" version=\"1.0\" xsi:schemaLocation=\"http://www.identisoft.net/protocol protocol.xsd\" xmlns=\"http://www.identisoft.net/protocol\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <dbupdate>\r\n    <Master id=\"401\" >\r\n        <masterdetail id=\"0\" mdValString =\"test address\" >\r\n        <masterDetailType  id=\"15\"> \r\n        </masterDetailType>\r\n    </masterdetail>\r\n   </Master>\r\n    <withClause>masterDetails</withClause>\r\n    <withClause>masterDetails.masterDetailType</withClause>\r\n  </dbupdate>\r\n</protocol>\r\n"
+				},
+				"url": {
+					"raw": "https://127.0.0.1/portal/api/xml",
+					"protocol": "https",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"path": [
+						"portal",
+						"api",
+						"xml"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "lookUpRecord",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/xml"
+					},
+					{
+						"key": "token",
+						"value": "{{Token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<protocol id=\"82945242\" version=\"1.0\" xsi:schemaLocation=\"http://www.identisoft.net/protocol protocol.xsd\" xmlns=\"http://www.identisoft.net/protocol\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n   <dbsearch searchQuery=\"select m from Master m\" recordCount=\"10\">\r\n  </dbsearch>\r\n</protocol>"
+				},
+				"url": {
+					"raw": "https://127.0.0.1/portal/api/xml",
+					"protocol": "https",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"path": [
+						"portal",
+						"api",
+						"xml"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "lookUpRecord Example_TO_JOIN",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/xml"
+					},
+					{
+						"key": "token",
+						"value": "{{Token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<protocol id=\"82945242\" version=\"1.0\" xsi:schemaLocation=\"http://www.identisoft.net/protocol protocol.xsd\" xmlns=\"http://www.identisoft.net/protocol\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n   <dbsearch searchQuery=\"select da from DevAction da join da.deviceImprox di join da.setting das where das.settingType = 1001 and di.devSla ='02010104' and das.nameOriginal like '%Action 1%'\" recordCount=\"10\">\r\n  </dbsearch>\r\n</protocol>"
+				},
+				"url": {
+					"raw": "https://127.0.0.1/portal/api/xml",
+					"protocol": "https",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"path": [
+						"portal",
+						"api",
+						"xml"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "deleteRecord",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/xml"
+					},
+					{
+						"key": "token",
+						"value": "dc7bcea5-fe8e-46e8-b80d-815c15c57707"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<protocol id=\"82945242\" version=\"1.0\" xsi:schemaLocation=\"http://www.identisoft.net/protocol protocol.xsd\" xmlns=\"http://www.identisoft.net/protocol\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <dbupdate>\r\n    <tag id=\"-3\"></tag>\r\n     </dbupdate>\r\n</protocol>\r\n"
+				},
+				"url": {
+					"raw": "https://127.0.0.1/portal/api/xml",
+					"protocol": "https",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"path": [
+						"portal",
+						"api",
+						"xml"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

@@ -1,0 +1,19 @@
+﻿<Window x:Class="DCS.Information"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DCS"
+        mc:Ignorable="d"
+        Title="Information" Height="450" Width="800">
+    <Grid>
+        <RichTextBox x:Name="InformationTxt" HorizontalAlignment="Left" Height="348" VerticalAlignment="Top" Width="784">
+            <FlowDocument>
+                <Paragraph>
+                    <Run Text="" />
+                </Paragraph>
+            </FlowDocument>
+        </RichTextBox>
+        <Button Content="Close" HorizontalAlignment="Left" Margin="683,374,0,0" VerticalAlignment="Top" Width="101" Height="36" Click="Button_Click_close" FontWeight="Bold" />
+    </Grid>
+</Window>

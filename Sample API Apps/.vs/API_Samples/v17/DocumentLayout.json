@@ -1,0 +1,53 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\tools\\PortalAPI\\V5API\\Sample API Apps\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{C24797F3-9003-4255-9982-974C3362D0A9}|API_Database_Console\\API_Database_Console.csproj|c:\\tools\\portalapi\\v5api\\sample api apps\\api_database_console\\api_database_sample.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C24797F3-9003-4255-9982-974C3362D0A9}|API_Database_Console\\API_Database_Console.csproj|solutionrelative:api_database_console\\api_database_sample.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6ADD35EF-CA79-485E-97DA-5C031E5FE624}|API_Transack_Console\\API_Transack_Console.csproj|C:\\tools\\PortalAPI\\V5API\\Sample API Apps\\api_transack_console\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{6ADD35EF-CA79-485E-97DA-5C031E5FE624}|API_Transack_Console\\API_Transack_Console.csproj|solutionrelative:api_transack_console\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 331,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "API_Database_Sample.cs",
+              "DocumentMoniker": "C:\\tools\\PortalAPI\\V5API\\Sample API Apps\\API_Database_Console\\API_Database_Sample.cs",
+              "RelativeDocumentMoniker": "API_Database_Console\\API_Database_Sample.cs",
+              "ToolTip": "C:\\tools\\PortalAPI\\V5API\\Sample API Apps\\API_Database_Console\\API_Database_Sample.cs",
+              "RelativeToolTip": "API_Database_Console\\API_Database_Sample.cs",
+              "ViewState": "AgIAACMAAAAAAAAAAAAAADQAAAANAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-10-20T06:11:15.737Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\tools\\PortalAPI\\V5API\\Sample API Apps\\API_Transack_Console\\Program.cs",
+              "RelativeDocumentMoniker": "API_Transack_Console\\Program.cs",
+              "ToolTip": "C:\\tools\\PortalAPI\\V5API\\Sample API Apps\\API_Transack_Console\\Program.cs",
+              "RelativeToolTip": "API_Transack_Console\\Program.cs",
+              "ViewState": "AgIAAAgAAAAAAAAAAAAQwC8AAAAlAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T07:09:59.315Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
