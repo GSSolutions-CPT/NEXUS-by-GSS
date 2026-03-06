@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
 
+import InstallPrompt from "@/components/InstallPrompt";
+
 const montserrat = Montserrat({
   variable: "--font-montserrat",
   subsets: ["latin"],
@@ -10,8 +12,10 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: "Nexus | Global Security Solutions",
   description: "Visitor Management Portal secured by Global Security Solutions",
+  manifest: "/manifest.json",
   icons: {
-    icon: "/logo-192.svg"
+    icon: "/logo-192.svg",
+    apple: "/logo-192.svg" // Add apple touch icon
   }
 };
 
@@ -26,6 +30,7 @@ export default function RootLayout({
         className={`${montserrat.variable} font-sans antialiased bg-slate-900 text-slate-100 min-h-screen selection:bg-sky-500/30`}
       >
         {children}
+        <InstallPrompt />
       </body>
     </html>
   );
