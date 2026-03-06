@@ -1,64 +1,73 @@
 import Image from "next/image";
 
-export default function Home() {
+export default function Login() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+    <div className="flex min-h-screen items-center justify-center relative overflow-hidden">
+      {/* Background glowing effects */}
+      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-sky-500/20 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-blue-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+
+      <main className="relative z-10 flex w-full max-w-md flex-col items-center justify-center p-8 sm:p-12">
+        {/* Glassmorphic Card */}
+        <div className="w-full rounded-3xl bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-8 shadow-2xl">
+          <div className="flex flex-col items-center gap-6 text-center">
+
             <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+              src="/logo-512.svg"
+              alt="Global Security Solutions Logo"
+              width={120}
+              height={120}
+              priority
+              className="drop-shadow-[0_0_15px_rgba(14,165,233,0.3)]"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold tracking-tight text-white drop-shadow-md">
+                Nexus Portal
+              </h1>
+              <p className="text-sm text-slate-400">
+                Authorized Personnel Only
+              </p>
+            </div>
+
+            <form className="w-full space-y-4 mt-4">
+              <div className="space-y-1 text-left">
+                <label className="text-xs font-semibold tracking-wide text-slate-400 uppercase">Email</label>
+                <input
+                  type="email"
+                  placeholder="admin@globalsecurity.co.za"
+                  className="w-full h-12 rounded-lg bg-slate-900/50 border border-slate-700/50 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
+                />
+              </div>
+
+              <div className="space-y-1 text-left">
+                <label className="text-xs font-semibold tracking-wide text-slate-400 uppercase">Password</label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  className="w-full h-12 rounded-lg bg-slate-900/50 border border-slate-700/50 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
+                />
+              </div>
+
+              <button
+                type="button"
+                className="w-full h-12 mt-4 rounded-lg bg-sky-500 hover:bg-sky-400 text-white font-semibold transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] hover:shadow-[0_0_30px_rgba(14,165,233,0.5)] active:scale-[0.98]"
+              >
+                Sign In to Nexus
+              </button>
+            </form>
+
+          </div>
         </div>
+
+        {/* Footer Admin Watermark */}
+        <p className="mt-8 text-xs text-slate-500 text-center max-w-xs">
+          System engineered and maintained by <br />
+          <a href="https://www.globalsecuritysolutions.co.za/" target="_blank" className="text-sky-500/80 hover:text-sky-400 font-medium transition-colors">Global Security Solutions</a>
+          <br />
+          <span className="mt-2 block">24/7 Support: <a href="https://wa.me/27629558559" target="_blank" className="hover:text-slate-300">062 955 8559</a></span>
+        </p>
+
       </main>
     </div>
   );
