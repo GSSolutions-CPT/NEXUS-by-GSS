@@ -72,8 +72,23 @@ export async function middleware(request: NextRequest) {
         return response;
     }
 
-    // If trying to access a restricted dashboard without user => redirect to login
-    if (!user && (isAccessingAdmin || isAccessingOwner || isAccessingGuard)) {
+    if (user) {
+        // Fetch role from profile strictly to protect routes
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+        const role = profile?.role || user.user_metadata?.role;
+
+        if (isAccessingAdmin && role !== 'SuperAdmin') {
+            return NextResponse.redirect(new URL('/', request.url));
+        }
+        if (isAccessingOwner && role !== 'SuperAdmin' && role !== 'GroupAdmin') {
+            return NextResponse.redirect(new URL('/', request.url));
+        }
+    } else if (isAccessingAdmin || isAccessingOwner || isAccessingGuard) {
         return NextResponse.redirect(new URL('/', request.url))
     }
 

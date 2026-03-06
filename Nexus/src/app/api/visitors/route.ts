@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { randomInt } from 'crypto';
 
 export async function POST(request: Request) {
     try {
@@ -49,8 +50,8 @@ export async function POST(request: Request) {
             console.error(`[${user.id}] Failed to fetch unit mapping. Using fallbacks.`, err);
         }
 
-        // 4. Generate Hardware PIN
-        const generatedPin = Math.floor(10000 + Math.random() * 90000).toString();
+        // 4. Generate Hardware PIN securely
+        const generatedPin = randomInt(10000, 100000).toString();
 
         // 5. Insert into Supabase - Set status to 'pending_sync' for the C# Bridge to pull
         const visitorPayload = {

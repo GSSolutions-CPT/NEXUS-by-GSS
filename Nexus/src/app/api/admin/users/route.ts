@@ -56,8 +56,9 @@ export async function POST(request: Request) {
         });
 
         if (createErr || !newUser.user) {
-            console.error("Failed to create user in Auth:", createErr);
-            return NextResponse.json({ error: createErr?.message || "Failed to create user" }, { status: 500 });
+            console.error(`[Admin User Creation Failed] ID: ${user.id} | Err:`, createErr);
+            // Do not leak createErr?.message to the client
+            return NextResponse.json({ error: "Failed to provision user account. Please contact system support." }, { status: 500 });
         }
 
         // 4. Update the trigger-created profile with role & unit

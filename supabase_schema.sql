@@ -61,17 +61,30 @@ CREATE TABLE audit_logs (
 -- SECURITY: Row Level Security (RLS)
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- Allow users to read their own profile data so subqueries evaluate successfully
+CREATE POLICY "Users can read own profile" ON profiles FOR SELECT TO authenticated USING (id = auth.uid());
+
 ALTER TABLE units ENABLE ROW LEVEL SECURITY;
 ALTER TABLE visitors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
+-- Optimized helper functions for RLS to prevent N+1 subquery bottlenecks
+CREATE OR REPLACE FUNCTION auth.user_role() RETURNS text AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid();
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION auth.user_unit_id() RETURNS uuid AS $$
+  SELECT unit_id FROM public.profiles WHERE id = auth.uid();
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
 -- SuperAdmins can see everything
-CREATE POLICY "SuperAdmins see all visitors" ON visitors FOR ALL TO authenticated USING ((SELECT role FROM profiles WHERE id = auth.uid()) = 'SuperAdmin');
+CREATE POLICY "SuperAdmins see all visitors" ON visitors FOR ALL TO authenticated USING (auth.user_role() = 'SuperAdmin');
 
 -- GroupAdmins (Unit Owners) can only see and manage visitors for their own unit
 CREATE POLICY "GroupAdmins manage own visitors" ON visitors FOR ALL TO authenticated USING (
-    unit_id = (SELECT unit_id FROM profiles WHERE id = auth.uid()) 
-    AND (SELECT role FROM profiles WHERE id = auth.uid()) = 'GroupAdmin'
+    unit_id = auth.user_unit_id() 
+    AND auth.user_role() = 'GroupAdmin'
 );
 
 -- Guards can see visitors if they are active and need parking for today
@@ -79,5 +92,5 @@ CREATE POLICY "Guards see parking visitors today" ON visitors FOR SELECT TO auth
     needs_parking = TRUE 
     AND start_time <= NOW() 
     AND expiry_time >= NOW()
-    AND (SELECT role FROM profiles WHERE id = auth.uid()) = 'Guard'
+    AND auth.user_role() = 'Guard'
 );
