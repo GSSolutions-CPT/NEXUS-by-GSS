@@ -1,6 +1,69 @@
+"use client";
+
 import Image from "next/image";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
 
 export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const supabase = createClient();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 1. Authenticate with Supabase Auth
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError || !data.user) {
+        throw new Error(authError?.message || "Invalid login credentials.");
+      }
+
+      // 2. Fetch the user's role from the 'profiles' table to route them correctly
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        throw new Error("User profile not found. Please contact support.");
+      }
+
+      // 3. Route to the correct dashboard
+      if (profile.role === 'SuperAdmin') {
+        router.push('/admin');
+      } else if (profile.role === 'GroupAdmin') {
+        router.push('/owner');
+      } else if (profile.role === 'Guard') {
+        router.push('/guard');
+      } else {
+        throw new Error("Unknown role assignment.");
+      }
+
+      router.refresh(); // Refresh to trigger middleware newly set cookies
+
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unknown error occurred.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center relative overflow-hidden">
       {/* Background glowing effects */}
@@ -30,13 +93,24 @@ export default function Login() {
               </p>
             </div>
 
-            <form className="w-full space-y-4 mt-4">
+            <form onSubmit={handleLogin} className="w-full space-y-4 mt-4 text-left">
+
+              {error && (
+                <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold rounded-lg text-center">
+                  {error}
+                </div>
+              )}
+
               <div className="space-y-1 text-left">
                 <label className="text-xs font-semibold tracking-wide text-slate-400 uppercase">Email</label>
                 <input
                   type="email"
                   placeholder="admin@globalsecurity.co.za"
-                  className="w-full h-12 rounded-lg bg-slate-900/50 border border-slate-700/50 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                  required
+                  className="w-full h-12 rounded-lg bg-slate-900/50 border border-slate-700/50 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all disabled:opacity-50"
                 />
               </div>
 
@@ -45,15 +119,24 @@ export default function Login() {
                 <input
                   type="password"
                   placeholder="••••••••"
-                  className="w-full h-12 rounded-lg bg-slate-900/50 border border-slate-700/50 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  required
+                  className="w-full h-12 rounded-lg bg-slate-900/50 border border-slate-700/50 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all disabled:opacity-50"
                 />
               </div>
 
               <button
-                type="button"
-                className="w-full h-12 mt-4 rounded-lg bg-sky-500 hover:bg-sky-400 text-white font-semibold transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] hover:shadow-[0_0_30px_rgba(14,165,233,0.5)] active:scale-[0.98]"
+                type="submit"
+                disabled={loading}
+                className="w-full h-12 mt-4 flex items-center justify-center gap-2 rounded-lg bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-400 text-white font-semibold transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] hover:shadow-[0_0_30px_rgba(14,165,233,0.5)] disabled:shadow-none active:scale-[0.98]"
               >
-                Sign In to Nexus
+                {loading ? (
+                  <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                ) : (
+                  "Sign In to Nexus"
+                )}
               </button>
             </form>
 
