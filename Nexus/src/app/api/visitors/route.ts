@@ -33,21 +33,20 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Could not determine unit association." }, { status: 400 });
         }
 
-        // 3. Inheritance Logic: Fetch allowed access groups for this Unit
-        let allowedGroups = [1, 2]; // Default fallbacks
+        // 3. Inheritance Logic: Validate access groups exist for this Unit
         try {
             const { data: unitMapping, error: mapErr } = await supabase
-                .from("unit_access_groups")
+                .from("unit_access_mapping")
                 .select("access_group_id")
                 .eq("unit_id", profile.unit_id);
 
             if (mapErr) throw mapErr;
 
-            if (unitMapping && unitMapping.length > 0) {
-                allowedGroups = unitMapping.map(m => m.access_group_id);
+            if (!unitMapping || unitMapping.length === 0) {
+                console.warn(`[${user.id}] No access groups mapped for unit ${profile.unit_id}. Visitor will be queued but may fail hardware sync.`);
             }
         } catch (err) {
-            console.error(`[${user.id}] Failed to fetch unit mapping. Using fallbacks.`, err);
+            console.error(`[${user.id}] Failed to validate unit mapping.`, err);
         }
 
         // 4. Generate Hardware PIN securely
@@ -63,7 +62,7 @@ export async function POST(request: Request) {
             valid_from: new Date(validFrom).toISOString(),
             valid_until: new Date(validUntil).toISOString(),
             needs_parking: needsParking,
-            status: 'pending_sync' // <--- This tells the local hardware worker to pick it up
+            status: 'Pending' // <--- Matches DB CHECK constraint; C# worker polls for 'Pending'
         };
 
         const { error: insertErr } = await supabase
