@@ -22,11 +22,13 @@ namespace ImproBridgeAPI.Models
         [JsonPropertyName("pin_code")]
         public string PinCode { get; set; } = string.Empty;
 
-        [JsonPropertyName("valid_from")]
-        public DateTime ValidFrom { get; set; }
+        // FIXED: Maps to actual Supabase DB schema column
+        [JsonPropertyName("start_time")]
+        public DateTime StartTime { get; set; }
 
-        [JsonPropertyName("valid_until")]
-        public DateTime ValidUntil { get; set; }
+        // FIXED: Maps to actual Supabase DB schema column
+        [JsonPropertyName("expiry_time")]
+        public DateTime ExpiryTime { get; set; }
 
         [JsonPropertyName("needs_parking")]
         public bool NeedsParking { get; set; }

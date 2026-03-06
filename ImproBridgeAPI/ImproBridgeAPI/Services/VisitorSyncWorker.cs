@@ -42,7 +42,6 @@ namespace ImproBridgeAPI.Services
                     _logger.LogError(ex, "An error occurred while attempting to poll for pending visitors.");
                 }
 
-                // Poll every 60 seconds
                 await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
             }
 
@@ -51,8 +50,8 @@ namespace ImproBridgeAPI.Services
 
         private async Task ProcessPendingVisitorsAsync(CancellationToken stoppingToken)
         {
-            // 1. Fetch pending visitors using Supabase REST API (PostgREST)
-            var getTaskUrl = "/rest/v1/visitors?status=eq.pending_sync&select=*";
+            // FIXED: Must match CHECK constraint in database exactly (case-sensitive)
+            var getTaskUrl = "/rest/v1/visitors?status=eq.Pending&select=*";
             var response = await _httpClient.GetAsync(getTaskUrl, stoppingToken);
 
             if (!response.IsSuccessStatusCode)
@@ -66,12 +65,11 @@ namespace ImproBridgeAPI.Services
 
             if (pendingVisitors == null || !pendingVisitors.Any())
             {
-                return; // Nothing to do
+                return; 
             }
 
             _logger.LogInformation($"Found {pendingVisitors.Count} pending visitor(s) to sync to physical hardware.");
 
-            // 2. We need a scoped IImproCommandService because this is a singleton hosted service
             using var scope = _serviceProvider.CreateScope();
             var improService = scope.ServiceProvider.GetRequiredService<IImproCommandService>();
 
@@ -82,10 +80,12 @@ namespace ImproBridgeAPI.Services
                 {
                     _logger.LogInformation($"Processing Visitor {visitor.FirstName} {visitor.LastName} (PIN: {visitor.PinCode})");
 
-                    // 2a. Fetch their unit's allowed access groups
-                    var groupsUrl = $"/rest/v1/unit_access_groups?unit_id=eq.{visitor.UnitId}&select=access_group_id";
+                    // FIXED: Queried correct table 'unit_access_mapping' instead of 'unit_access_groups'
+                    var groupsUrl = $"/rest/v1/unit_access_mapping?unit_id=eq.{visitor.UnitId}&select=access_group_id";
                     var groupsResponse = await _httpClient.GetAsync(groupsUrl, stoppingToken);
-                    var accessGroupIds = new List<int> { 1, 2 }; // Default fallbacks
+                    
+                    // FIXED: Removed Mock Data fallback. Start empty.
+                    var accessGroupIds = new List<int>(); 
 
                     if (groupsResponse.IsSuccessStatusCode)
                     {
@@ -97,50 +97,55 @@ namespace ImproBridgeAPI.Services
                         }
                     }
 
-                    // 2b. Sync User to Hardware
-                    var visitorRequest = new VisitorRequest
+                    // SECURITY: Do not sync a user to hardware if they have no access mapped
+                    if (!accessGroupIds.Any())
                     {
-                        FirstName = visitor.FirstName,
-                        LastName = visitor.LastName,
-                        Phone = visitor.Phone,
-                        PinCode = visitor.PinCode,
-                        ExpiryDateTime = visitor.ValidUntil.ToString("yyyyMMddHHmmss"),
-                        AccessGroupIds = accessGroupIds.ToArray()
-                    };
-
-                    // We use an internal fake token since we are initiating from the server itself. 
-                    // In a highly secure real-world system, Impro API credentials would be directly used here.
-                    string internalToken = "worker-service-token";
-
-                    var userSynced = improService.SyncUser(visitorRequest, internalToken);
-                    
-                    if (userSynced)
-                    {
-                        // 2c. Map Access Groups
-                        foreach (var groupId in visitorRequest.AccessGroupIds)
-                        {
-                            improService.AssignAccessGroup(visitorRequest.PinCode, groupId, internalToken);
-                        }
-
-                        // 2d. Construct XML payload for tag sync
-                        string expiryDateStr = visitorRequest.ExpiryDateTime.Substring(0, 8);
-                        string expiryTimeStr = visitorRequest.ExpiryDateTime.Substring(8, 6);
-
-                        string xmlPayload = $@"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
-                        <protocol id=""82945242"" version=""1.0"">
-                          <dbupdate>
-                            <Master id=""0"" current=""1"" firstName=""{visitorRequest.FirstName}"" lastName=""{visitorRequest.LastName}"">
-                             <tag id=""0"" tagCode=""{visitorRequest.PinCode}"" expiryDate=""{expiryDateStr}"" expiryTime=""{expiryTimeStr}"" />
-                            </Master>
-                            <withClause>tags</withClause>
-                          </dbupdate>
-                        </protocol>";
-
-                        syncSuccess = improService.PerformAction(xmlPayload, internalToken);
+                        _logger.LogWarning($"Visitor {visitor.Id} has no physical access groups mapped to their unit. Aborting hardware sync.");
+                        syncSuccess = false;
                     }
                     else
                     {
-                        _logger.LogError($"Failed to sync Master record for visitor {visitor.Id}");
+                        var visitorRequest = new VisitorRequest
+                        {
+                            FirstName = visitor.FirstName,
+                            LastName = visitor.LastName,
+                            Phone = visitor.Phone,
+                            PinCode = visitor.PinCode,
+                            // FIXED: Mapped to correct ExpiryTime variable
+                            ExpiryDateTime = visitor.ExpiryTime.ToString("yyyyMMddHHmmss"),
+                            AccessGroupIds = accessGroupIds.ToArray()
+                        };
+
+                        string internalToken = "worker-service-token";
+
+                        var userSynced = improService.SyncUser(visitorRequest, internalToken);
+                        
+                        if (userSynced)
+                        {
+                            foreach (var groupId in visitorRequest.AccessGroupIds)
+                            {
+                                improService.AssignAccessGroup(visitorRequest.PinCode, groupId, internalToken);
+                            }
+
+                            string expiryDateStr = visitorRequest.ExpiryDateTime.Substring(0, 8);
+                            string expiryTimeStr = visitorRequest.ExpiryDateTime.Substring(8, 6);
+
+                            string xmlPayload = $@"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
+                            <protocol id=""82945242"" version=""1.0"">
+                              <dbupdate>
+                                <Master id=""0"" current=""1"" firstName=""{visitorRequest.FirstName}"" lastName=""{visitorRequest.LastName}"">
+                                 <tag id=""0"" tagCode=""{visitorRequest.PinCode}"" expiryDate=""{expiryDateStr}"" expiryTime=""{expiryTimeStr}"" />
+                                </Master>
+                                <withClause>tags</withClause>
+                              </dbupdate>
+                            </protocol>";
+
+                            syncSuccess = improService.PerformAction(xmlPayload, internalToken);
+                        }
+                        else
+                        {
+                            _logger.LogError($"Failed to sync Master record for visitor {visitor.Id}");
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -149,14 +154,14 @@ namespace ImproBridgeAPI.Services
                     syncSuccess = false;
                 }
 
-                // 3. Status Callback to Supabase
-                var finalStatus = syncSuccess ? "active" : "sync_failed";
+                // FIXED: Must match the CHECK constraint in the Postgres DB ('Active' or 'Revoked')
+                // Previous values ("active", "sync_failed") would crash the database on update.
+                var finalStatus = syncSuccess ? "Active" : "Revoked";
                 _logger.LogInformation($"Updating Visitor {visitor.Id} status to {finalStatus} in Supabase.");
 
                 var patchBody = new { status = finalStatus };
                 var jsonBody = new StringContent(JsonSerializer.Serialize(patchBody), Encoding.UTF8, "application/json");
                 
-                // PostgREST Patch requires a Preferences header to return representation or just nothing, default is fine.
                 var patchUrl = $"/rest/v1/visitors?id=eq.{visitor.Id}";
                 var patchResponse = await _httpClient.PatchAsync(patchUrl, jsonBody, stoppingToken);
 

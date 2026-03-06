@@ -9,6 +9,7 @@ namespace ImproBridgeAPI.Services
         bool PerformAction(string xmlCommand, string token);
         
         string GetAccessGroups(string token);
+        List<HardwareTransaction> GetTransactions(DateTime since, string token);
         bool SyncUser(VisitorRequest request, string token);
         bool AssignAccessGroup(string tagCode, int accessGroupId, string token);
         bool RevokeVisitor(string tagCode, string token);
@@ -68,6 +69,18 @@ namespace ImproBridgeAPI.Services
         {
              Console.WriteLine($"[Impro SDK] driveAction on Relay ID: {relayId}");
              return true;
+        }
+
+        public List<HardwareTransaction> GetTransactions(DateTime since, string token)
+        {
+            // Placeholder: In production, this calls PortalAPI's HQL query:
+            // "SELECT obj FROM Transaction obj WHERE obj.timestamp > :since ORDER BY obj.timestamp ASC"
+            // For now, we simulate returning recent hardware events.
+            Console.WriteLine($"[Impro SDK] getTransactions since {since:yyyy-MM-dd HH:mm:ss}");
+
+            // Return an empty list in development. The real SDK will populate this
+            // with actual hardware door scan events.
+            return new List<HardwareTransaction>();
         }
     }
 }

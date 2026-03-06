@@ -11,6 +11,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IImproCommandService, ImproCommandService>();
 builder.Services.AddHttpClient(); // Required for VisitorSyncWorker
 builder.Services.AddHostedService<VisitorSyncWorker>();
+builder.Services.AddHostedService<AuditSyncWorker>();
 builder.Services.AddHostedService<RetryService>();
 
 var app = builder.Build();
