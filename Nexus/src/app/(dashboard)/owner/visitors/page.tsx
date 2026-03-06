@@ -90,6 +90,9 @@ export default function ActiveVisitorsPage() {
                                 </td>
                                 <td className="p-4 text-right pr-6">
                                     <div className="flex items-center justify-end gap-2">
+                                        <button className="text-slate-400 hover:text-sky-400 transition-colors p-2" title="Edit Schedule" onClick={() => { alert("Edit Access Schedule Modal:\n\nAllow Entry From: [ 08:00 AM ]\nAllow Entry Until: [ 05:00 PM ]\n\n(This will seamlessly push the new constraints to the Impro Hardware bridge without reissuing the PIN)") }}>
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                        </button>
                                         <button className="text-slate-400 hover:text-sky-400 transition-colors p-2" title="Resend SMS">
                                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                                         </button>
@@ -130,6 +133,9 @@ export default function ActiveVisitorsPage() {
                                 </td>
                                 <td className="p-4 text-right pr-6">
                                     <div className="flex items-center justify-end gap-2">
+                                        <button className="text-slate-400 hover:text-sky-400 transition-colors p-2" title="Edit Schedule" onClick={() => { alert("Edit Access Schedule Modal:\n\nAllow Entry From: [ 10:00 AM ]\nAllow Entry Until: [ 11:00 AM ]\n\n(This will seamlessly push the new constraints to the Impro Hardware bridge without reissuing the PIN)") }}>
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                        </button>
                                         <button className="text-slate-400 hover:text-sky-400 transition-colors p-2" title="Resend SMS">
                                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                                         </button>
