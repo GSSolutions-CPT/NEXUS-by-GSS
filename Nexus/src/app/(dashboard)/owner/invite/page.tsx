@@ -1,9 +1,88 @@
 "use client";
 
 import { useState } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { useRouter } from "next/navigation";
 
 export default function InviteVisitorPage() {
     const [inviteType, setInviteType] = useState("single");
+
+    // Form State
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [phone, setPhone] = useState("");
+    const [validFrom, setValidFrom] = useState("");
+    const [validUntil, setValidUntil] = useState("");
+    const [needsParking, setNeedsParking] = useState(false);
+
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+    const supabase = createClient();
+    const router = useRouter();
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        setSuccessMsg(null);
+
+        try {
+            // Get current user to link unit_id
+            const { data: { user }, error: authErr } = await supabase.auth.getUser();
+            if (authErr || !user) throw new Error("Authentication error. Please log in again.");
+
+            // Fetch the user's profile to get their unit_id
+            const { data: profile, error: profErr } = await supabase
+                .from("profiles")
+                .select("unit_id")
+                .eq("id", user.id)
+                .single();
+
+            if (profErr || !profile) throw new Error("Could not fetch user unit assignment.");
+
+            // Generate a random 5 digit Wiegand PIN for the hardware system
+            const generatedPin = Math.floor(10000 + Math.random() * 90000).toString();
+
+            const visitorPayload = {
+                unit_id: profile.unit_id,
+                first_name: firstName,
+                last_name: lastName,
+                phone: phone,
+                pin_code: generatedPin,
+                valid_from: new Date(validFrom).toISOString(),
+                valid_until: new Date(validUntil).toISOString(),
+                needs_parking: needsParking,
+                status: 'pending' // pending until C# Bridge picks it up
+            };
+
+            const { error: insertErr } = await supabase
+                .from("visitors")
+                .insert([visitorPayload]);
+
+            if (insertErr) throw new Error(insertErr.message);
+
+            setSuccessMsg("Visitor successfully invited! Credential is being pushed to the gates.");
+
+            // Clear form
+            setFirstName("");
+            setLastName("");
+            setPhone("");
+            setValidFrom("");
+            setValidUntil("");
+            setNeedsParking(false);
+
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError("An unknown error occurred.");
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -43,16 +122,28 @@ export default function InviteVisitorPage() {
                     {/* Single Invite Form */}
                     {inviteType === "single" && (
                         <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
-                            <form className="space-y-6">
+                            <form onSubmit={handleSubmit} className="space-y-6">
+
+                                {error && (
+                                    <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-semibold rounded-lg text-center">
+                                        {error}
+                                    </div>
+                                )}
+
+                                {successMsg && (
+                                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-semibold rounded-lg text-center">
+                                        {successMsg}
+                                    </div>
+                                )}
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold tracking-wide text-slate-400 uppercase">First Name</label>
-                                        <input type="text" placeholder="Jan" className="w-full h-11 px-4 rounded-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500 transition-colors" />
+                                        <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} required placeholder="Jan" className="w-full h-11 px-4 rounded-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500 transition-colors" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold tracking-wide text-slate-400 uppercase">Last Name</label>
-                                        <input type="text" placeholder="Van Der Merwe" className="w-full h-11 px-4 rounded-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500 transition-colors" />
+                                        <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} required placeholder="Van Der Merwe" className="w-full h-11 px-4 rounded-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500 transition-colors" />
                                     </div>
                                 </div>
 
@@ -60,31 +151,35 @@ export default function InviteVisitorPage() {
                                     <label className="text-xs font-bold tracking-wide text-slate-400 uppercase">Mobile Number (For SMS Link)</label>
                                     <div className="flex">
                                         <span className="flex items-center justify-center px-4 bg-slate-800 border border-r-0 border-slate-700 rounded-l-lg text-slate-400 font-medium">+27</span>
-                                        <input type="tel" placeholder="82 123 4567" className="w-full h-11 px-4 rounded-r-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500 transition-colors" />
+                                        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} required placeholder="82 123 4567" className="w-full h-11 px-4 rounded-r-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500 transition-colors" />
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold tracking-wide text-slate-400 uppercase">Valid From</label>
-                                        <input type="datetime-local" className="w-full h-11 px-4 rounded-lg bg-slate-900/50 border border-slate-700 text-white [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
+                                        <input type="datetime-local" value={validFrom} onChange={e => setValidFrom(e.target.value)} required className="w-full h-11 px-4 rounded-lg bg-slate-900/50 border border-slate-700 text-white [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold tracking-wide text-slate-400 uppercase">Valid Until</label>
-                                        <input type="datetime-local" className="w-full h-11 px-4 rounded-lg bg-slate-900/50 border border-slate-700 text-white [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
+                                        <input type="datetime-local" value={validUntil} onChange={e => setValidUntil(e.target.value)} required className="w-full h-11 px-4 rounded-lg bg-slate-900/50 border border-slate-700 text-white [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
                                     </div>
                                 </div>
 
                                 <div className="flex items-center gap-3 p-4 rounded-lg bg-slate-900/50 border border-slate-700/50 cursor-pointer hover:bg-slate-800/80 transition-colors">
-                                    <input type="checkbox" id="parking" className="w-5 h-5 rounded bg-slate-800 border-slate-600 text-sky-500 focus:ring-sky-500/50" />
+                                    <input type="checkbox" id="parking" checked={needsParking} onChange={e => setNeedsParking(e.target.checked)} className="w-5 h-5 rounded bg-slate-800 border-slate-600 text-sky-500 focus:ring-sky-500/50 cursor-pointer" />
                                     <div className="flex-1">
                                         <label htmlFor="parking" className="font-semibold text-white cursor-pointer block">Requires Visitor Parking</label>
                                         <p className="text-xs text-slate-500">Alerts the guardhouse to assign a parking bay.</p>
                                     </div>
                                 </div>
 
-                                <button type="button" className="w-full py-4 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-xl transition-all shadow-[0_4px_14px_0_rgba(14,165,233,0.39)] hover:shadow-[0_6px_20px_rgba(14,165,233,0.23)] hover:-translate-y-0.5 mt-4">
-                                    Generate Dynamic Pass & Send Invite
+                                <button type="submit" disabled={loading} className="w-full h-12 flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-400 text-white font-bold rounded-xl transition-all shadow-[0_4px_14px_0_rgba(14,165,233,0.39)] hover:shadow-[0_6px_20px_rgba(14,165,233,0.23)] hover:-translate-y-0.5 disabled:shadow-none disabled:transform-none mt-4">
+                                    {loading ? (
+                                        <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                                    ) : (
+                                        "Generate Dynamic Pass & Send Invite"
+                                    )}
                                 </button>
                             </form>
                         </div>
