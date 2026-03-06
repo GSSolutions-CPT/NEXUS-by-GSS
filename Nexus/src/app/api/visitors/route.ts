@@ -8,6 +8,7 @@ export async function POST(request: Request) {
         // 1. Authenticate Request
         const { data: { user }, error: authErr } = await supabase.auth.getUser();
         if (authErr || !user) {
+            console.warn("Unauthorized API access attempt");
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
         const { firstName, lastName, phone, validFrom, validUntil, needsParking } = body;
 
         if (!firstName || !lastName || !phone || !validFrom || !validUntil) {
+            console.warn(`[${user.id}] Missing required fields in visitor invitation.`);
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
@@ -26,21 +28,25 @@ export async function POST(request: Request) {
             .single();
 
         if (profErr || !profile?.unit_id) {
+            console.error(`[${user.id}] Error fetching user profile or unit.`, profErr);
             return NextResponse.json({ error: "Could not determine unit association." }, { status: 400 });
         }
 
         // 3. Inheritance Logic: Fetch allowed access groups for this Unit
-        // In a real database, unit_access_groups would map unit_id to access_group_id
-        // For fallback/mock purposes, we assume [1] = Main Gate, [2] = General Lift
-        let allowedGroups = [1, 2];
+        let allowedGroups = [1, 2]; // Default fallbacks
+        try {
+            const { data: unitMapping, error: mapErr } = await supabase
+                .from("unit_access_groups")
+                .select("access_group_id")
+                .eq("unit_id", profile.unit_id);
 
-        const { data: unitMapping, error: mapErr } = await supabase
-            .from("unit_access_groups")
-            .select("access_group_id")
-            .eq("unit_id", profile.unit_id);
+            if (mapErr) throw mapErr;
 
-        if (!mapErr && unitMapping && unitMapping.length > 0) {
-            allowedGroups = unitMapping.map(m => m.access_group_id);
+            if (unitMapping && unitMapping.length > 0) {
+                allowedGroups = unitMapping.map(m => m.access_group_id);
+            }
+        } catch (err) {
+            console.error(`[${user.id}] Failed to fetch unit mapping. Using fallbacks.`, err);
         }
 
         // 4. Generate Hardware PIN
@@ -56,21 +62,24 @@ export async function POST(request: Request) {
             valid_from: new Date(validFrom).toISOString(),
             valid_until: new Date(validUntil).toISOString(),
             needs_parking: needsParking,
-            status: 'active'
+            status: 'active' // We will update this to 'sync_failed' if the bridge drops it
         };
 
-        const { error: insertErr } = await supabase
+        const { data: insertedVisitor, error: insertErr } = await supabase
             .from("visitors")
-            .insert([visitorPayload]);
+            .insert([visitorPayload])
+            .select("id")
+            .single();
 
-        if (insertErr) {
-            console.error("Supabase Insert Error:", insertErr);
+        if (insertErr || !insertedVisitor) {
+            console.error(`[${user.id}] Supabase Insert Error for visitor ${firstName} ${lastName}:`, insertErr);
             return NextResponse.json({ error: "Database failed to save visitor." }, { status: 500 });
         }
 
         // 6. Push to C# Hardware Bridge 
         const bridgeUrl = process.env.IMPRO_BRIDGE_URL;
         const bridgeSecret = process.env.SUPABASE_SHARED_SECRET || "default_dev_secret";
+        let hardwareSyncSuccess = false;
 
         if (bridgeUrl) {
             try {
@@ -96,21 +105,36 @@ export async function POST(request: Request) {
                     body: JSON.stringify(bridgePayload)
                 });
 
-                if (!bridgeRes.ok) {
-                    console.warn("C# Bridge rejected the payload. Local hardware may be out of sync. Response:", await bridgeRes.text());
+                if (bridgeRes.ok) {
+                    hardwareSyncSuccess = true;
+                } else {
+                    const errText = await bridgeRes.text();
+                    console.error(`[${user.id}] Bridge rejected payload for ${firstName} ${lastName}. Status ${bridgeRes.status}. Output: ${errText}`);
                 }
             } catch (networkErr) {
-                console.error("Cannot reach C# Bridge. Offline?", networkErr);
-                // In production, we'd queue this into a Supabase table for background retry
+                console.error(`[${user.id}] Cannot reach C# Bridge for visitor ${firstName} ${lastName}. Is it offline?`, networkErr);
             }
+
+            // Fallback status handler
+            if (!hardwareSyncSuccess) {
+                await supabase
+                    .from("visitors")
+                    .update({ status: 'sync_failed' })
+                    .eq("id", insertedVisitor.id);
+            }
+
         } else {
-            console.log("IMPRO_BRIDGE_URL environment variable not set. Bypassing hardware sync.");
+            console.log(`[${user.id}] IMPRO_BRIDGE_URL environment variable not set. Bypassing hardware sync.`);
         }
 
-        return NextResponse.json({ success: true, message: "Visitor invited & groups inherited.", pinCode: generatedPin });
+        if (hardwareSyncSuccess || !bridgeUrl) {
+            return NextResponse.json({ success: true, message: "Visitor invited & groups inherited.", pinCode: generatedPin });
+        } else {
+            return NextResponse.json({ success: false, error: "Visitor created in cloud but failed to sync to physical hardware.", pinCode: generatedPin }, { status: 502 });
+        }
 
     } catch (err: unknown) {
-        console.error("API Route Error:", err);
+        console.error("Critical API Route Error in /api/visitors:", err);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
