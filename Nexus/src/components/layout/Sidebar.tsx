@@ -8,6 +8,7 @@ export default function Sidebar() {
     const pathname = usePathname();
     const isAdmin = pathname.startsWith("/admin");
     const isOwner = pathname.startsWith("/owner");
+    const isGuard = pathname.startsWith("/guard");
 
     const adminLinks = [
         { href: "/admin", label: "Overview", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
@@ -22,7 +23,11 @@ export default function Sidebar() {
         { href: "/owner/visitors", label: "Active Passes", icon: "M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" },
     ];
 
-    const links = isAdmin ? adminLinks : isOwner ? ownerLinks : [];
+    const guardLinks = [
+        { href: "/guard", label: "Gate Station", icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" },
+    ];
+
+    const links = isAdmin ? adminLinks : isOwner ? ownerLinks : isGuard ? guardLinks : [];
 
     return (
         <aside className="w-64 flex-shrink-0 bg-slate-950/80 backdrop-blur-xl border-r border-slate-800 flex flex-col justify-between hidden md:flex">
@@ -30,7 +35,7 @@ export default function Sidebar() {
             <div>
                 {/* Logo & Brand */}
                 <div className="h-20 flex items-center px-6 border-b border-slate-800">
-                    <Link href={isAdmin ? "/admin" : "/owner"} className="flex items-center gap-3 group">
+                    <Link href={isAdmin ? "/admin" : isOwner ? "/owner" : "/guard"} className="flex items-center gap-3 group">
                         <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center border border-sky-400/30 group-hover:bg-sky-500/30 transition-colors">
                             <Image src="/logo-192.svg" alt="GSS Logo" width={20} height={20} className="w-5 h-5 drop-shadow-[0_0_8px_rgba(14,165,233,0.5)]" />
                         </div>
@@ -49,8 +54,8 @@ export default function Sidebar() {
                                 key={link.href}
                                 href={link.href}
                                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive
-                                        ? "bg-sky-500/10 text-sky-400 border border-sky-500/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
-                                        : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+                                    ? "bg-sky-500/10 text-sky-400 border border-sky-500/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+                                    : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
                                     }`}
                             >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
