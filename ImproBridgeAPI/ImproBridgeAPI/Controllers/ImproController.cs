@@ -31,10 +31,27 @@ namespace ImproBridgeAPI.Controllers
             return Ok(new AuthResponse { Token = "mock-hardware-token", Message = "Authenticated with Server" });
         }
 
+        [HttpGet("access-groups")]
+        public IActionResult GetAccessGroups([FromHeader(Name = "Authorization")] string token)
+        {
+            var result = _improService.GetAccessGroups(token);
+            return Ok(result);
+        }
+
         [HttpPost("visitor")]
         public IActionResult CreateVisitor([FromBody] VisitorRequest request, [FromHeader(Name = "Authorization")] string token)
         {
-            // Build the XML payload modeled exactly after the Postman "insertMasterWithTag" example
+            // Sync the user to hardware first
+            var userSynced = _improService.SyncUser(request, token);
+            if (!userSynced) return StatusCode(500, "Failed to sync user to hardware.");
+
+            // Then map their access groups
+            foreach (var groupId in request.AccessGroupIds)
+            {
+                _improService.AssignAccessGroup(request.PinCode, groupId, token);
+            }
+
+            // Finally, Build the XML payload modeled exactly after the Postman "insertMasterWithTag" example for final tag linkage
             string xmlPayload = $@"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
             <protocol id=""82945242"" version=""1.0"">
               <dbupdate>
@@ -53,11 +70,25 @@ namespace ImproBridgeAPI.Controllers
             return StatusCode(500, "Failed to push to Impro API");
         }
         
+        [HttpDelete("visitor/{tagCode}")]
+        public IActionResult RevokeVisitor(string tagCode, [FromHeader(Name = "Authorization")] string token)
+        {
+            var success = _improService.RevokeVisitor(tagCode, token);
+            if (success) {
+                return Ok(new { Message = $"Visitor Tag {tagCode} revoked." });
+            }
+            return StatusCode(500, "Failed to revoke tag.");
+        }
+
         [HttpPost("door/open")]
-        public IActionResult OpenDoor()
+        public IActionResult OpenDoor([FromBody] Models.DoorRequest request, [FromHeader(Name = "Authorization")] string token)
         {
              // Build the <iprxmessage command="OPEN_DOOR"> payload
-             return Ok(new { Message = "Hardware command sent."});
+             var success = _improService.OpenDoor(request.RelayId, token);
+             if (success) {
+                 return Ok(new { Message = $"Hardware command sent for Relay {request.RelayId}."});
+             }
+             return StatusCode(500, "Failed to trigger hardware relay.");
         }
     }
 }

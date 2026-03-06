@@ -9,6 +9,7 @@ builder.Services.AddSwaggerGen();
 
 // Register the custom Impro Bridge Service
 builder.Services.AddScoped<IImproCommandService, ImproCommandService>();
+builder.Services.AddHostedService<RetryService>();
 
 var app = builder.Build();
 
