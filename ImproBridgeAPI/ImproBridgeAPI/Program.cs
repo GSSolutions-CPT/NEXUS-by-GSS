@@ -9,6 +9,8 @@ builder.Services.AddSwaggerGen();
 
 // Register the custom Impro Bridge Service
 builder.Services.AddScoped<IImproCommandService, ImproCommandService>();
+builder.Services.AddHttpClient(); // Required for VisitorSyncWorker
+builder.Services.AddHostedService<VisitorSyncWorker>();
 builder.Services.AddHostedService<RetryService>();
 
 var app = builder.Build();

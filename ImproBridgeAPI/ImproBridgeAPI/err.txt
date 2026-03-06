@@ -1,0 +1,9 @@
+C:\Users\User\OneDrive\Desktop\V5API\ImproBridgeAPI\ImproBridgeAPI\Services\VisitorSyncWorker.cs(105,25): error CS0117: 'VisitorRequest' does not contain a definition for 'Phone' [C:\Users\User\OneDrive\Desktop\V5API\ImproBridgeAPI\ImproBridgeAPI\ImproBridgeAPI.csproj]
+C:\Users\User\OneDrive\Desktop\V5API\ImproBridgeAPI\ImproBridgeAPI\Services\VisitorSyncWorker.cs(108,42): error CS0029: Cannot implicitly convert type 'System.Collections.Generic.List<int>' to 'int[]' [C:\Users\User\OneDrive\Desktop\V5API\ImproBridgeAPI\ImproBridgeAPI\ImproBridgeAPI.csproj]
+C:\Users\User\OneDrive\Desktop\V5API\ImproBridgeAPI\ImproBridgeAPI\Services\VisitorSyncWorker.cs(109,25): error CS0117: 'VisitorRequest' does not contain a definition for 'Password' [C:\Users\User\OneDrive\Desktop\V5API\ImproBridgeAPI\ImproBridgeAPI\ImproBridgeAPI.csproj]
+
+Build FAILED.
+    0 Warning(s)
+    3 Error(s)
+
+Time Elapsed 00:00:49.68

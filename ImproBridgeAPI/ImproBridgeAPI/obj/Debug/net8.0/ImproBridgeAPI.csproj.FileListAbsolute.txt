@@ -33,3 +33,4 @@ C:\Users\User\OneDrive\Desktop\V5API\ImproBridgeAPI\ImproBridgeAPI\obj\Debug\net
 C:\Users\User\OneDrive\Desktop\V5API\ImproBridgeAPI\ImproBridgeAPI\obj\Debug\net8.0\ImproBridgeAPI.pdb
 C:\Users\User\OneDrive\Desktop\V5API\ImproBridgeAPI\ImproBridgeAPI\obj\Debug\net8.0\ImproBridgeAPI.genruntimeconfig.cache
 C:\Users\User\OneDrive\Desktop\V5API\ImproBridgeAPI\ImproBridgeAPI\obj\Debug\net8.0\ref\ImproBridgeAPI.dll
+C:\Users\User\OneDrive\Desktop\V5API\ImproBridgeAPI\ImproBridgeAPI\obj\Debug\net8.0\ImproBridgeAPI.sourcelink.json

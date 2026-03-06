@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using ImproBridgeAPI.Models;
 
 namespace ImproBridgeAPI.Services
 {
