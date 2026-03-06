@@ -1,9 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createClient } from "@/utils/supabase/client";
+
+interface Visitor {
+    id: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    valid_from: string;
+    valid_until: string;
+    needs_parking: boolean;
+    status: string;
+}
 
 export default function ActiveVisitorsPage() {
     const [filter, setFilter] = useState("active");
+    const [visitors, setVisitors] = useState<Visitor[]>([]);
+    const [loading, setLoading] = useState(true);
+    const supabase = createClient();
+
+    useEffect(() => {
+        const fetchVisitors = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data: profile } = await supabase.from("profiles").select("unit_id").eq("id", user.id).single();
+            if (!profile?.unit_id) return;
+
+            const { data } = await supabase
+                .from("visitors")
+                .select("*")
+                .eq("unit_id", profile.unit_id)
+                .order("created_at", { ascending: false });
+
+            if (data) {
+                setVisitors(data);
+            }
+            setLoading(false);
+        };
+        fetchVisitors();
+    }, [supabase]);
+
+    const filteredVisitors = visitors.filter(v => {
+        const now = new Date();
+        const validUntil = new Date(v.valid_until);
+        const validFrom = new Date(v.valid_from);
+
+        if (filter === 'active') return validFrom <= now && validUntil >= now;
+        if (filter === 'scheduled') return validFrom > now;
+        if (filter === 'expired') return validUntil < now;
+        return true;
+    });
 
     return (
         <div className="space-y-6">
@@ -46,7 +94,7 @@ export default function ActiveVisitorsPage() {
                 </div>
 
                 {/* Data Table */}
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto min-h-[300px]">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-slate-700/50 bg-slate-900/20 text-xs uppercase tracking-wider text-slate-400 font-semibold">
@@ -59,93 +107,77 @@ export default function ActiveVisitorsPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700/50">
-
-                            {/* Row 1 */}
-                            <tr className="hover:bg-slate-800/30 transition-colors group">
-                                <td className="p-4 pl-6">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold text-sm">
-                                            AM
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={6} className="p-8 text-center text-slate-500">
+                                        <div className="flex justify-center mb-2">
+                                            <span className="w-6 h-6 border-2 border-sky-500/20 border-t-sky-500 rounded-full animate-spin"></span>
                                         </div>
-                                        <div>
-                                            <p className="font-semibold text-white">Alice Martin</p>
-                                            <p className="text-xs text-slate-400">Visitor Parking Requested</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="p-4">
-                                    <span className="text-sm text-slate-300">+27 82 555 1234</span>
-                                </td>
-                                <td className="p-4">
-                                    <span className="text-sm text-slate-300">Today, 08:00 AM</span>
-                                </td>
-                                <td className="p-4">
-                                    <span className="text-sm text-slate-300">Today, 05:00 PM</span>
-                                </td>
-                                <td className="p-4">
-                                    <span className="flex flex-shrink-0 items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full w-max">
-                                        <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
-                                        Active
-                                    </span>
-                                </td>
-                                <td className="p-4 text-right pr-6">
-                                    <div className="flex items-center justify-end gap-2">
-                                        <button className="text-slate-400 hover:text-sky-400 transition-colors p-2" title="Edit Schedule" onClick={() => { alert("Edit Access Schedule Modal:\n\nAllow Entry From: [ 08:00 AM ]\nAllow Entry Until: [ 05:00 PM ]\n\n(This will seamlessly push the new constraints to the Impro Hardware bridge without reissuing the PIN)") }}>
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                        </button>
-                                        <button className="text-slate-400 hover:text-sky-400 transition-colors p-2" title="Resend SMS">
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                                        </button>
-                                        <button className="text-slate-400 hover:text-rose-400 transition-colors p-2" title="Revoke Pass">
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            {/* Row 2 */}
-                            <tr className="hover:bg-slate-800/30 transition-colors group">
-                                <td className="p-4 pl-6">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold text-sm">
-                                            BB
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-white">Bob Baker</p>
-                                            <p className="text-xs text-slate-400">Deliveries</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="p-4">
-                                    <span className="text-sm text-slate-300">+27 71 222 9876</span>
-                                </td>
-                                <td className="p-4">
-                                    <span className="text-sm text-slate-300">Tomorrow, 10:00 AM</span>
-                                </td>
-                                <td className="p-4">
-                                    <span className="text-sm text-slate-300">Tomorrow, 11:00 AM</span>
-                                </td>
-                                <td className="p-4">
-                                    <span className="flex flex-shrink-0 items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-full w-max">
-                                        <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                                        Scheduled
-                                    </span>
-                                </td>
-                                <td className="p-4 text-right pr-6">
-                                    <div className="flex items-center justify-end gap-2">
-                                        <button className="text-slate-400 hover:text-sky-400 transition-colors p-2" title="Edit Schedule" onClick={() => { alert("Edit Access Schedule Modal:\n\nAllow Entry From: [ 10:00 AM ]\nAllow Entry Until: [ 11:00 AM ]\n\n(This will seamlessly push the new constraints to the Impro Hardware bridge without reissuing the PIN)") }}>
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                        </button>
-                                        <button className="text-slate-400 hover:text-sky-400 transition-colors p-2" title="Resend SMS">
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                                        </button>
-                                        <button className="text-slate-400 hover:text-rose-400 transition-colors p-2" title="Revoke Pass">
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-
+                                        Loading visitors...
+                                    </td>
+                                </tr>
+                            ) : filteredVisitors.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="p-8 text-center text-slate-500">
+                                        No {filter} visitors found.
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredVisitors.map((v) => (
+                                    <tr key={v.id} className="hover:bg-slate-800/30 transition-colors group">
+                                        <td className="p-4 pl-6">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold text-sm">
+                                                    {v.first_name?.[0]}{v.last_name?.[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-white">{v.first_name} {v.last_name}</p>
+                                                    {v.needs_parking && <p className="text-xs text-slate-400">Visitor Parking Requested</p>}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="text-sm text-slate-300">{v.phone}</span>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="text-sm text-slate-300">{new Date(v.valid_from).toLocaleString()}</span>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="text-sm text-slate-300">{new Date(v.valid_until).toLocaleString()}</span>
+                                        </td>
+                                        <td className="p-4">
+                                            {filter === 'active' && (
+                                                <span className="flex flex-shrink-0 items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full w-max">
+                                                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
+                                                    Active
+                                                </span>
+                                            )}
+                                            {filter === 'scheduled' && (
+                                                <span className="flex flex-shrink-0 items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-full w-max">
+                                                    <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_5px_rgba(245,158,11,0.5)]"></div>
+                                                    Scheduled
+                                                </span>
+                                            )}
+                                            {filter === 'expired' && (
+                                                <span className="flex flex-shrink-0 items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider bg-slate-500/10 border border-slate-500/30 text-slate-400 rounded-full w-max">
+                                                    <div className="w-2 h-2 rounded-full bg-slate-500 shadow-[0_0_5px_rgba(100,116,139,0.5)]"></div>
+                                                    Expired
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="p-4 text-right pr-6">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button className="text-slate-400 hover:text-sky-400 transition-colors p-2" title="Resend SMS">
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                                </button>
+                                                <button className="text-slate-400 hover:text-rose-400 transition-colors p-2" title="Revoke Pass">
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>

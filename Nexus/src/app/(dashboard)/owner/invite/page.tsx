@@ -29,39 +29,25 @@ export default function InviteVisitorPage() {
         setSuccessMsg(null);
 
         try {
-            // Get current user to link unit_id
-            const { data: { user }, error: authErr } = await supabase.auth.getUser();
-            if (authErr || !user) throw new Error("Authentication error. Please log in again.");
-
-            // Fetch the user's profile to get their unit_id
-            const { data: profile, error: profErr } = await supabase
-                .from("profiles")
-                .select("unit_id")
-                .eq("id", user.id)
-                .single();
-
-            if (profErr || !profile) throw new Error("Could not fetch user unit assignment.");
-
-            // Generate a random 5 digit Wiegand PIN for the hardware system
-            const generatedPin = Math.floor(10000 + Math.random() * 90000).toString();
-
             const visitorPayload = {
-                unit_id: profile.unit_id,
-                first_name: firstName,
-                last_name: lastName,
+                firstName: firstName,
+                lastName: lastName,
                 phone: phone,
-                pin_code: generatedPin,
-                valid_from: new Date(validFrom).toISOString(),
-                valid_until: new Date(validUntil).toISOString(),
-                needs_parking: needsParking,
-                status: 'pending' // pending until C# Bridge picks it up
+                validFrom: new Date(validFrom).toISOString(),
+                validUntil: new Date(validUntil).toISOString(),
+                needsParking: needsParking
             };
 
-            const { error: insertErr } = await supabase
-                .from("visitors")
-                .insert([visitorPayload]);
+            const res = await fetch("/api/visitors", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(visitorPayload)
+            });
 
-            if (insertErr) throw new Error(insertErr.message);
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || "Failed to invite visitor. System might be offline.");
+            }
 
             setSuccessMsg("Visitor successfully invited! Credential is being pushed to the gates.");
 

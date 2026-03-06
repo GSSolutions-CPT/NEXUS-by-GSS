@@ -1,10 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
+import { createClient } from "@/utils/supabase/client";
+
+interface ExpectedVisitor {
+    id: string;
+    first_name: string;
+    last_name: string;
+    unit_id: string;
+    valid_from: string;
+    valid_until: string;
+}
 
 export default function GuardDashboardPage() {
     const [isOpeningBoom, setIsOpeningBoom] = useState(false);
+    const [visitors, setVisitors] = useState<ExpectedVisitor[]>([]);
+    const [loading, setLoading] = useState(true);
+    const supabase = createClient();
+
+    useEffect(() => {
+        const fetchExpectedVisitors = async () => {
+            const today = new Date();
+            const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+            const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+
+            // We only want visitors that need parking and are valid today
+            const { data } = await supabase
+                .from("visitors")
+                .select("*")
+                .eq("needs_parking", true)
+                .gte("valid_until", startOfDay)
+                .lte("valid_from", endOfDay)
+                .order("valid_from", { ascending: true });
+
+            if (data) {
+                setVisitors(data);
+            }
+            setLoading(false);
+        };
+        fetchExpectedVisitors();
+    }, [supabase]);
 
     const handleOpenBoomGate = () => {
         setIsOpeningBoom(true);
@@ -66,7 +102,7 @@ export default function GuardDashboardPage() {
                             </h3>
                             <span className="text-sm text-slate-400">Today</span>
                         </div>
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto min-h-[200px]">
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="border-b border-slate-700/50 bg-slate-900/40 text-xs uppercase tracking-wider text-slate-500 font-semibold">
@@ -77,23 +113,47 @@ export default function GuardDashboardPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-700/50">
-                                    {/* Row 1 */}
-                                    <tr className="hover:bg-slate-800/50 transition-colors">
-                                        <td className="p-4">
-                                            <p className="font-semibold text-white">Alice Martin</p>
-                                        </td>
-                                        <td className="p-4">
-                                            <span className="text-sm font-medium text-sky-400 bg-sky-500/10 px-2 py-1 rounded">Apt 402</span>
-                                        </td>
-                                        <td className="p-4">
-                                            <span className="text-sm text-slate-300">08:00 AM - 05:00 PM</span>
-                                        </td>
-                                        <td className="p-4">
-                                            <button className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-xs font-semibold text-white transition-colors">
-                                                Mark Arrived
-                                            </button>
-                                        </td>
-                                    </tr>
+                                    {loading ? (
+                                        <tr>
+                                            <td colSpan={4} className="p-8 text-center text-slate-500">
+                                                <div className="flex justify-center mb-2">
+                                                    <span className="w-6 h-6 border-2 border-sky-500/20 border-t-sky-500 rounded-full animate-spin"></span>
+                                                </div>
+                                                Fetching expected visitors...
+                                            </td>
+                                        </tr>
+                                    ) : visitors.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4} className="p-8 text-center text-slate-500">
+                                                No expected visitors needing parking today.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        visitors.map((v) => {
+                                            const from = new Date(v.valid_from).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                            const to = new Date(v.valid_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                            return (
+                                                <tr key={v.id} className="hover:bg-slate-800/50 transition-colors">
+                                                    <td className="p-4">
+                                                        <p className="font-semibold text-white">{v.first_name} {v.last_name}</p>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <span className="text-sm font-medium text-sky-400 bg-sky-500/10 px-2 py-1 rounded">
+                                                            Unit {v.unit_id}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <span className="text-sm text-slate-300">{from} - {to}</span>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <button className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-xs font-semibold text-white transition-colors">
+                                                            Mark Arrived
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -117,7 +177,7 @@ export default function GuardDashboardPage() {
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                            {/* Item 1 */}
+                            {/* In a real scenario, this would map over user profiles */}
                             <div className="p-3 bg-slate-800/80 border border-slate-700 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer group">
                                 <div className="flex justify-between items-start mb-2">
                                     <span className="font-bold text-white group-hover:text-sky-400 transition-colors">Apt 101</span>
@@ -132,7 +192,6 @@ export default function GuardDashboardPage() {
                                 </div>
                             </div>
 
-                            {/* Item 2 */}
                             <div className="p-3 bg-slate-800/80 border border-slate-700 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer group">
                                 <div className="flex justify-between items-start mb-2">
                                     <span className="font-bold text-white group-hover:text-sky-400 transition-colors">Global Tech Corp</span>
