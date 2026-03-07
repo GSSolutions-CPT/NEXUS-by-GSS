@@ -40,7 +40,8 @@ export default function UserManagementPage() {
     const [unitId, setUnitId] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [modalError, setModalError] = useState("");
-    const [tempPassword, setTempPassword] = useState("");
+    const [inviteLink, setInviteLink] = useState("");
+    const [copied, setCopied] = useState(false);
 
     const supabase = createClient();
 
@@ -70,7 +71,7 @@ export default function UserManagementPage() {
         e.preventDefault();
         setIsSubmitting(true);
         setModalError("");
-        setTempPassword("");
+        setInviteLink("");
         try {
             const res = await fetch("/api/admin/users", {
                 method: "POST",
@@ -79,13 +80,20 @@ export default function UserManagementPage() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to invite user");
-            setTempPassword(data.tempPassword);
+            setInviteLink(data.inviteLink || "");
             fetchUsers();
         } catch (err: unknown) {
             if (err instanceof Error) setModalError(err.message);
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const copyLink = () => {
+        if (!inviteLink) return;
+        navigator.clipboard.writeText(inviteLink);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
     };
 
     const handleDelete = async (userId: string, userName: string) => {
@@ -104,7 +112,7 @@ export default function UserManagementPage() {
 
     const resetModal = () => {
         setEmail(""); setFirstName(""); setLastName(""); setRole("GroupAdmin"); setUnitId("");
-        setModalError(""); setTempPassword(""); setIsModalOpen(false);
+        setModalError(""); setInviteLink(""); setCopied(false); setIsModalOpen(false);
     };
 
     // Filtering
@@ -146,7 +154,7 @@ export default function UserManagementPage() {
                     <h1 className="text-3xl font-bold text-white tracking-tight">User Management</h1>
                     <p className="text-slate-400 mt-1">Manage system administrators, unit owners, and security guards.</p>
                 </div>
-                <button onClick={() => { setIsModalOpen(true); setModalError(""); setTempPassword(""); }}
+                <button onClick={() => { setIsModalOpen(true); setModalError(""); setInviteLink(""); setCopied(false); }}
                     className="flex flex-shrink-0 items-center justify-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-lg font-medium transition-all shadow-[0_0_15px_rgba(14,165,233,0.3)] hover:shadow-[0_0_25px_rgba(14,165,233,0.5)]">
                     <UserPlus className="w-5 h-5 flex-shrink-0" />
                     Invite User
@@ -281,20 +289,32 @@ export default function UserManagementPage() {
                             </button>
                         </div>
 
-                        {tempPassword ? (
-                            /* Success State */
+                        {inviteLink ? (
+                            /* Success State — Invite Link */
                             <div className="p-5 space-y-4">
-                                <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm space-y-2">
-                                    <p className="font-semibold uppercase tracking-wide text-xs">User Created Successfully</p>
-                                    <p>Share these credentials securely with the new user:</p>
-                                    <div className="mt-2 p-3 rounded bg-slate-900/50 border border-slate-700 font-mono text-sm">
-                                        <p className="text-slate-300">Email: <span className="text-white">{email}</span></p>
-                                        <p className="text-slate-300">Password: <span className="text-white">{tempPassword}</span></p>
+                                <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 space-y-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">✓ User Created — Send This Link</p>
+                                    <p className="text-xs text-slate-300">
+                                        Share this magic link with <span className="font-semibold text-white">{email}</span>. They click it to set their own password and log in.
+                                    </p>
+                                    <div className="relative">
+                                        <textarea
+                                            readOnly
+                                            value={inviteLink}
+                                            rows={3}
+                                            className="w-full p-3 rounded-lg bg-slate-900/70 border border-slate-700 text-xs text-slate-300 font-mono resize-none focus:outline-none"
+                                        />
+                                        <button
+                                            onClick={copyLink}
+                                            className={`mt-2 w-full py-2 rounded-lg text-xs font-semibold transition-all ${copied ? "bg-emerald-500 text-white" : "bg-slate-700 hover:bg-slate-600 text-slate-200"}`}
+                                        >
+                                            {copied ? "✓ Copied!" : "Copy Link"}
+                                        </button>
                                     </div>
-                                    <p className="text-[10px] text-emerald-500 mt-2">The user should change their password on first login.</p>
+                                    <p className="text-[10px] text-slate-500">Tip: Send via WhatsApp or email. The link expires after 24 hours.</p>
                                 </div>
                                 <button onClick={resetModal} className="w-full py-2 rounded-lg font-medium text-sm text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
-                                    Close
+                                    Done
                                 </button>
                             </div>
                         ) : (

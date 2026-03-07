@@ -85,7 +85,7 @@ export async function GET() {
     }
 }
 
-// POST /api/admin/users — Create a new user
+// POST /api/admin/users — Create a new user via invite link
 export async function POST(request: Request) {
     try {
         const supabase = await createServerClient();
@@ -113,9 +113,6 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        // Generate a secure temporary password server-side
-        const tempPassword = `Nex${randomInt(100000, 999999)}!`;
-
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         if (!serviceRoleKey) {
             return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
@@ -127,6 +124,10 @@ export async function POST(request: Request) {
             { auth: { autoRefreshToken: false, persistSession: false } }
         );
 
+        // Step 1: Create the user account (confirmed) with a server-side temp password.
+        // The user will reset it via the magic link we generate below.
+        const tempPassword = `Nex${randomInt(100000, 999999)}!Tmp`;
+
         const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
             email,
             password: tempPassword,
@@ -136,10 +137,14 @@ export async function POST(request: Request) {
 
         if (createErr || !newUser.user) {
             console.error(`[Admin User Creation Failed] ID: ${user.id} | Err:`, createErr);
+            // Handle duplicate email gracefully
+            if (createErr?.message?.toLowerCase().includes("already")) {
+                return NextResponse.json({ error: "A user with this email already exists." }, { status: 409 });
+            }
             return NextResponse.json({ error: "Failed to provision user account." }, { status: 500 });
         }
 
-        // Update the profile with role & unit
+        // Step 2: Set role & unit on the profile immediately
         const profilePayload: Record<string, unknown> = {
             first_name: firstName,
             last_name: lastName,
@@ -154,19 +159,34 @@ export async function POST(request: Request) {
 
         if (profileUpdateErr) {
             console.error("Failed to update user profile:", profileUpdateErr);
+        }
+
+        // Step 3: Generate a password-reset (magic) link so the user sets their own password.
+        // This is far more reliable than sharing a temp password manually.
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://nexus-by-gss.vercel.app";
+        const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+            type: "recovery",
+            email,
+            options: { redirectTo: `${siteUrl}/` },
+        });
+
+        if (linkErr || !linkData?.properties?.action_link) {
+            console.error("Failed to generate magic link:", linkErr);
+            // Still a success — user exists, just no magic link
             return NextResponse.json({
                 success: true,
-                warning: "User created but profile role mapping failed.",
+                invited: false,
+                message: "User created. Could not generate invite link — ask them to use 'Forgot Password' on the login page.",
                 userId: newUser.user.id,
-                tempPassword,
             });
         }
 
         return NextResponse.json({
             success: true,
+            invited: true,
             message: "User created successfully.",
             userId: newUser.user.id,
-            tempPassword,
+            inviteLink: linkData.properties.action_link,
         });
 
     } catch (err) {
