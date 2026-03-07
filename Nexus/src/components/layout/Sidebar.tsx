@@ -71,8 +71,20 @@ export default function Sidebar() {
                 </nav>
             </div>
 
-            {/* Support Footer */}
-            <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+            {/* Logout + Support Footer */}
+            <div className="p-4 border-t border-slate-800 bg-slate-900/50 space-y-3">
+
+                {/* Logout Button */}
+                <form action="/auth/logout" method="POST">
+                    <button
+                        type="submit"
+                        className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all text-sm font-medium"
+                    >
+                        <LogOut className="w-5 h-5 flex-shrink-0" />
+                        Sign Out
+                    </button>
+                </form>
+
                 <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
                     <h4 className="text-xs font-semibold text-slate-300 mb-1">Global Security Solutions</h4>
                     <p className="text-[10px] text-slate-400 mb-3">System Maintenance & Support</p>
