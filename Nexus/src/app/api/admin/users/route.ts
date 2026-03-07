@@ -35,10 +35,10 @@ export async function GET() {
             { auth: { autoRefreshToken: false, persistSession: false } }
         );
 
-        // Fetch all profiles with their unit names
+        // Fetch all profiles — no embedded join (avoids PostgREST FK cache issues)
         const { data: profiles, error: profErr } = await supabaseAdmin
             .from("profiles")
-            .select("id, first_name, last_name, role, unit_id, created_at, units(name)")
+            .select("id, first_name, last_name, role, unit_id, created_at")
             .order("created_at", { ascending: true });
 
         if (profErr) {
@@ -59,16 +59,18 @@ export async function GET() {
             .select("id, name, type")
             .order("name", { ascending: true });
 
-        // Merge profiles with auth data
+        // Merge profiles with auth data, resolving unit names locally
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const enrichedUsers = (profiles || []).map((p: any) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const authUser = authUsers?.users?.find((u: any) => u.id === p.id);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const unit = (units || []).find((u: any) => u.id === p.unit_id);
             return {
                 ...p,
                 email: authUser?.email || "Unknown",
                 last_sign_in: authUser?.last_sign_in_at || null,
-                unit_name: p.units?.name || null,
+                unit_name: unit?.name || null,
             };
         });
 
