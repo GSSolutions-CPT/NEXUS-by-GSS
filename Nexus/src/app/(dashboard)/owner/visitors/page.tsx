@@ -1,185 +1,195 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@/utils/supabase/client";
+import { useState, useEffect, useCallback } from "react";
+import { Trash2, RefreshCw } from "lucide-react";
 
 interface Visitor {
     id: string;
     first_name: string;
     last_name: string;
     phone: string;
-    valid_from: string;
-    valid_until: string;
+    start_time: string;
+    expiry_time: string;
     needs_parking: boolean;
     status: string;
+    pin_code: string;
 }
 
 export default function ActiveVisitorsPage() {
     const [filter, setFilter] = useState("active");
+    const [search, setSearch] = useState("");
     const [visitors, setVisitors] = useState<Visitor[]>([]);
     const [loading, setLoading] = useState(true);
-    const supabase = createClient();
+    const [error, setError] = useState<string | null>(null);
+    const [revoking, setRevoking] = useState<string | null>(null);
 
-    useEffect(() => {
-        const fetchVisitors = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-
-            const { data: profile } = await supabase.from("profiles").select("unit_id").eq("id", user.id).single();
-            if (!profile?.unit_id) return;
-
-            const { data } = await supabase
-                .from("visitors")
-                .select("*")
-                .eq("unit_id", profile.unit_id)
-                .order("created_at", { ascending: false });
-
-            if (data) {
-                setVisitors(data);
-            }
+    const fetchVisitors = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await fetch("/api/visitors");
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || "Failed to fetch visitors");
+            setVisitors(json.visitors || []);
+        } catch (err: unknown) {
+            if (err instanceof Error) setError(err.message);
+        } finally {
             setLoading(false);
-        };
-        fetchVisitors();
-    }, [supabase]);
+        }
+    }, []);
+
+    useEffect(() => { fetchVisitors(); }, [fetchVisitors]);
+
+    const handleRevoke = async (id: string, name: string) => {
+        if (!confirm(`Revoke access for ${name}? They will no longer be able to enter.`)) return;
+        setRevoking(id);
+        try {
+            const res = await fetch(`/api/visitors?id=${id}`, { method: "DELETE" });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || "Failed to revoke");
+            fetchVisitors();
+        } catch (err: unknown) {
+            if (err instanceof Error) setError(err.message);
+        } finally {
+            setRevoking(null);
+        }
+    };
+
+    const now = new Date();
 
     const filteredVisitors = visitors.filter(v => {
-        const now = new Date();
-        const validUntil = new Date(v.valid_until);
-        const validFrom = new Date(v.valid_from);
+        const start = new Date(v.start_time);
+        const expiry = new Date(v.expiry_time);
 
-        if (filter === 'active') return validFrom <= now && validUntil >= now;
-        if (filter === 'scheduled') return validFrom > now;
-        if (filter === 'expired') return validUntil < now;
-        return true;
+        const matchesFilter = (() => {
+            if (filter === "active") return start <= now && expiry >= now && v.status !== "Revoked";
+            if (filter === "scheduled") return start > now && v.status !== "Revoked";
+            if (filter === "expired") return expiry < now || v.status === "Revoked";
+            return true;
+        })();
+
+        const matchesSearch = `${v.first_name} ${v.last_name} ${v.phone}`.toLowerCase().includes(search.toLowerCase());
+        return matchesFilter && matchesSearch;
     });
+
+    const statusBadge = (v: Visitor) => {
+        const start = new Date(v.start_time);
+        const expiry = new Date(v.expiry_time);
+        if (v.status === "Revoked") return { label: "Revoked", cls: "bg-rose-500/10 border-rose-500/30 text-rose-400", dot: "bg-rose-500" };
+        if (v.status === "Pending") return { label: "Pending Sync", cls: "bg-amber-500/10 border-amber-500/30 text-amber-400", dot: "bg-amber-500" };
+        if (expiry < now) return { label: "Expired", cls: "bg-slate-500/10 border-slate-500/30 text-slate-400", dot: "bg-slate-500" };
+        if (start > now) return { label: "Scheduled", cls: "bg-sky-500/10 border-sky-500/30 text-sky-400", dot: "bg-sky-500" };
+        return { label: "Active", cls: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400", dot: "bg-emerald-500" };
+    };
+
+    const fmt = (d: string) => new Date(d).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" });
 
     return (
         <div className="space-y-6">
 
-            {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-white tracking-tight">Active Passes</h1>
                     <p className="text-slate-400 mt-1">Manage current and scheduled visitor access to your premises.</p>
                 </div>
+                <button onClick={fetchVisitors} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-sm font-medium transition-colors border border-slate-700">
+                    <RefreshCw className="w-4 h-4" />
+                    Refresh
+                </button>
             </div>
 
-            {/* Main Content Area */}
+            {error && <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-400 text-sm">{error}</div>}
+
             <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl overflow-hidden backdrop-blur-sm">
 
                 {/* Filters */}
                 <div className="border-b border-slate-700/50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-
                     <div className="flex bg-slate-900/50 p-1 rounded-xl border border-slate-700/50 w-full sm:w-auto">
-                        {['active', 'scheduled', 'expired'].map((status) => (
-                            <button
-                                key={status}
-                                onClick={() => setFilter(status)}
-                                className={`flex-1 sm:px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors ${filter === status ? "bg-slate-800 text-white shadow-sm" : "text-slate-400 hover:text-white"}`}
-                            >
-                                {status === 'active' ? 'Active Now' : status === 'scheduled' ? 'Scheduled' : 'Expired'}
+                        {[
+                            { key: "active", label: `Active (${visitors.filter(v => new Date(v.start_time) <= now && new Date(v.expiry_time) >= now && v.status !== "Revoked").length})` },
+                            { key: "scheduled", label: `Scheduled (${visitors.filter(v => new Date(v.start_time) > now && v.status !== "Revoked").length})` },
+                            { key: "expired", label: `Expired (${visitors.filter(v => new Date(v.expiry_time) < now || v.status === "Revoked").length})` },
+                        ].map(({ key, label }) => (
+                            <button key={key} onClick={() => setFilter(key)}
+                                className={`flex-1 sm:px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors ${filter === key ? "bg-slate-800 text-white shadow-sm" : "text-slate-400 hover:text-white"}`}>
+                                {label}
                             </button>
                         ))}
                     </div>
 
                     <div className="relative w-full sm:w-72">
-                        <svg className="w-5 h-5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                        <input
-                            type="text"
-                            placeholder="Search visitors..."
-                            className="w-full h-10 pl-10 pr-4 rounded-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-500 text-sm focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
-                        />
+                        <svg className="w-5 h-5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input type="text" placeholder="Search by name or phone..." value={search} onChange={e => setSearch(e.target.value)}
+                            className="w-full h-10 pl-10 pr-4 rounded-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-500 text-sm focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all" />
                     </div>
-
                 </div>
 
-                {/* Data Table */}
-                <div className="overflow-x-auto min-h-[300px]">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-slate-700/50 bg-slate-900/20 text-xs uppercase tracking-wider text-slate-400 font-semibold">
-                                <th className="p-4 pl-6">Visitor Name</th>
-                                <th className="p-4">Contact</th>
-                                <th className="p-4">Valid From</th>
-                                <th className="p-4">Valid Until</th>
-                                <th className="p-4">Status</th>
-                                <th className="p-4 text-right pr-6">Manage</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-700/50">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={6} className="p-8 text-center text-slate-500">
-                                        <div className="flex justify-center mb-2">
-                                            <span className="w-6 h-6 border-2 border-sky-500/20 border-t-sky-500 rounded-full animate-spin"></span>
-                                        </div>
-                                        Loading visitors...
-                                    </td>
+                <div className="overflow-x-auto">
+                    {loading ? (
+                        <div className="p-12 text-center">
+                            <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                            <p className="text-slate-400 text-sm">Loading visitors...</p>
+                        </div>
+                    ) : filteredVisitors.length === 0 ? (
+                        <div className="p-12 text-center text-slate-500 text-sm">No {filter} visitors found.</div>
+                    ) : (
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-slate-700/50 bg-slate-900/20 text-xs uppercase tracking-wider text-slate-400 font-semibold">
+                                    <th className="p-4 pl-6">Visitor</th>
+                                    <th className="p-4">Contact</th>
+                                    <th className="p-4">Valid From</th>
+                                    <th className="p-4">Expires</th>
+                                    <th className="p-4">Status</th>
+                                    <th className="p-4 text-right pr-6">Actions</th>
                                 </tr>
-                            ) : filteredVisitors.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="p-8 text-center text-slate-500">
-                                        No {filter} visitors found.
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredVisitors.map((v) => (
-                                    <tr key={v.id} className="hover:bg-slate-800/30 transition-colors group">
-                                        <td className="p-4 pl-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold text-sm">
-                                                    {v.first_name?.[0]}{v.last_name?.[0]}
+                            </thead>
+                            <tbody className="divide-y divide-slate-700/50">
+                                {filteredVisitors.map((v) => {
+                                    const badge = statusBadge(v);
+                                    const canRevoke = v.status !== "Revoked" && new Date(v.expiry_time) >= now;
+                                    return (
+                                        <tr key={v.id} className="hover:bg-slate-800/30 transition-colors">
+                                            <td className="p-4 pl-6">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold text-sm">
+                                                        {v.first_name?.[0]}{v.last_name?.[0]}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-semibold text-white">{v.first_name} {v.last_name}</p>
+                                                        {v.needs_parking && <p className="text-[10px] text-amber-400">Parking requested</p>}
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-semibold text-white">{v.first_name} {v.last_name}</p>
-                                                    {v.needs_parking && <p className="text-xs text-slate-400">Visitor Parking Requested</p>}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="p-4">
-                                            <span className="text-sm text-slate-300">{v.phone}</span>
-                                        </td>
-                                        <td className="p-4">
-                                            <span className="text-sm text-slate-300">{new Date(v.valid_from).toLocaleString()}</span>
-                                        </td>
-                                        <td className="p-4">
-                                            <span className="text-sm text-slate-300">{new Date(v.valid_until).toLocaleString()}</span>
-                                        </td>
-                                        <td className="p-4">
-                                            {filter === 'active' && (
-                                                <span className="flex flex-shrink-0 items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full w-max">
-                                                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
-                                                    Active
+                                            </td>
+                                            <td className="p-4 text-sm text-slate-300">{v.phone}</td>
+                                            <td className="p-4 text-sm text-slate-300">{fmt(v.start_time)}</td>
+                                            <td className="p-4 text-sm text-slate-300">{fmt(v.expiry_time)}</td>
+                                            <td className="p-4">
+                                                <span className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider border rounded-full w-max ${badge.cls}`}>
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+                                                    {badge.label}
                                                 </span>
-                                            )}
-                                            {filter === 'scheduled' && (
-                                                <span className="flex flex-shrink-0 items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-full w-max">
-                                                    <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_5px_rgba(245,158,11,0.5)]"></div>
-                                                    Scheduled
-                                                </span>
-                                            )}
-                                            {filter === 'expired' && (
-                                                <span className="flex flex-shrink-0 items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider bg-slate-500/10 border border-slate-500/30 text-slate-400 rounded-full w-max">
-                                                    <div className="w-2 h-2 rounded-full bg-slate-500 shadow-[0_0_5px_rgba(100,116,139,0.5)]"></div>
-                                                    Expired
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="p-4 text-right pr-6">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button className="text-slate-400 hover:text-sky-400 transition-colors p-2" title="Resend SMS">
-                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                                                </button>
-                                                <button className="text-slate-400 hover:text-rose-400 transition-colors p-2" title="Revoke Pass">
-                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                            </td>
+                                            <td className="p-4 text-right pr-6">
+                                                {canRevoke && (
+                                                    <button onClick={() => handleRevoke(v.id, `${v.first_name} ${v.last_name}`)}
+                                                        disabled={revoking === v.id}
+                                                        className="text-slate-400 hover:text-rose-400 transition-colors p-2 disabled:opacity-50" title="Revoke Pass">
+                                                        {revoking === v.id
+                                                            ? <div className="w-4 h-4 border border-rose-400 border-t-transparent rounded-full animate-spin" />
+                                                            : <Trash2 className="w-4 h-4" />
+                                                        }
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
             </div>
         </div>
