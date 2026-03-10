@@ -1,6 +1,8 @@
 using ImproBridgeAPI.Models;
 using ImproBridgeAPI.Services;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace ImproBridgeAPI.Controllers
 {
@@ -19,28 +21,55 @@ namespace ImproBridgeAPI.Controllers
             _logger = logger;
         }
 
-        [HttpPost("auth")]
-        public IActionResult Authenticate([FromBody] AuthRequest request)
+        /// <summary>
+        /// Validates an HMAC-SHA256 signature to authenticate the caller.
+        /// The caller must include:
+        ///   X-Bridge-Timestamp: Unix timestamp (seconds, UTC)
+        ///   X-Bridge-Signature: HMAC-SHA256(secret, "{timestamp}:{endpoint}")
+        /// Signatures older than 5 minutes are rejected to prevent replay attacks.
+        /// </summary>
+        private bool ValidateHmac(string endpoint)
         {
-            try 
-            {
-                // Security Check: Ensure only Supabase/Next.js can call this local bridge
-                var sharedSecret = _configuration["SupabaseSharedSecret"];
-                if (request.Password != sharedSecret) 
-                {
-                    _logger.LogWarning("Authentication failed due to an invalid Bridge Secret.");
-                    return Unauthorized(new { Message = "Invalid Bridge Secret" });
-                }
+            var secret = _configuration["SupabaseSharedSecret"];
+            if (string.IsNullOrEmpty(secret)) return false;
 
-                // In production, fetch the real hardware token via the SDK
-                _logger.LogInformation("Successfully authenticated incoming request from Supabase.");
-                return Ok(new AuthResponse { Token = "mock-hardware-token", Message = "Authenticated with Server" });
-            }
-            catch (Exception ex)
+            if (!Request.Headers.TryGetValue("X-Bridge-Timestamp", out var tsHeader) ||
+                !Request.Headers.TryGetValue("X-Bridge-Signature", out var sigHeader))
+                return false;
+
+            if (!long.TryParse(tsHeader, out long timestamp)) return false;
+
+            // Reject requests older than 5 minutes (replay protection)
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (Math.Abs(now - timestamp) > 300)
             {
-                _logger.LogError(ex, "An error occurred during authentication.");
-                return StatusCode(500, "Internal Server Error");
+                _logger.LogWarning("HMAC timestamp too old or too far in future. Possible replay attack. ts={ts}", timestamp);
+                return false;
             }
+
+            var message = $"{timestamp}:{endpoint}";
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+            var expectedSig = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(message))).ToLowerInvariant();
+            var providedSig = sigHeader.ToString().ToLowerInvariant();
+
+            // Constant-time comparison to prevent timing attacks
+            return CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(expectedSig),
+                Encoding.UTF8.GetBytes(providedSig)
+            );
+        }
+
+        [HttpPost("auth")]
+        public IActionResult Authenticate()
+        {
+            if (!ValidateHmac("auth"))
+            {
+                _logger.LogWarning("Authentication failed — invalid or expired HMAC signature.");
+                return Unauthorized(new { Message = "Invalid or expired request signature" });
+            }
+
+            _logger.LogInformation("Successfully authenticated incoming request via HMAC.");
+            return Ok(new AuthResponse { Token = "mock-hardware-token", Message = "Authenticated with Server" });
         }
 
         [HttpGet("access-groups")]
