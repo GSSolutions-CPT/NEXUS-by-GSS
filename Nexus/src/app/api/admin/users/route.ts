@@ -162,8 +162,13 @@ export async function POST(request: Request) {
         }
 
         // Step 3: Generate a password-reset (magic) link so the user sets their own password.
-        // This is far more reliable than sharing a temp password manually.
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://nexus-by-gss.vercel.app";
+        // Use a robust fallback chain — never rely on a single env var that may point to a dead preview deployment.
+        const PRODUCTION_URL = "https://nexus-by-gss.vercel.app";
+        const rawSiteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
+        // Reject preview-deployment URLs (they are ephemeral and die after redeploys)
+        const isDeadPreview = rawSiteUrl && /[a-z0-9]+-[a-z0-9]+-[a-z0-9]+-[a-z0-9]+\.vercel\.app/.test(rawSiteUrl);
+        const siteUrl = (!rawSiteUrl || isDeadPreview) ? PRODUCTION_URL : rawSiteUrl.startsWith("http") ? rawSiteUrl : `https://${rawSiteUrl}`;
+
         const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
             type: "recovery",
             email,
