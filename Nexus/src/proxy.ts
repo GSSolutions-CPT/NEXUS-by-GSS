@@ -1,11 +1,22 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const ROLE_HOME: Record<string, string> = {
+    SuperAdmin: '/admin',
+    GroupAdmin: '/owner',
+    Guard: '/guard',
+}
+
 export async function proxy(request: NextRequest) {
+    const { pathname } = request.nextUrl
+
+    // API routes and static assets handle their own auth
+    if (pathname.startsWith('/api/') || pathname.startsWith('/guest')) {
+        return NextResponse.next({ request })
+    }
+
     let response = NextResponse.next({
-        request: {
-            headers: request.headers,
-        },
+        request: { headers: request.headers },
     })
 
     const supabase = createServerClient(
@@ -17,79 +28,57 @@ export async function proxy(request: NextRequest) {
                     return request.cookies.get(name)?.value
                 },
                 set(name: string, value: string, options: CookieOptions) {
-                    request.cookies.set({
-                        name,
-                        value,
-                        ...options,
-                    })
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
-                    })
-                    response.cookies.set({
-                        name,
-                        value,
-                        ...options,
-                    })
+                    request.cookies.set({ name, value, ...options })
+                    response = NextResponse.next({ request: { headers: request.headers } })
+                    response.cookies.set({ name, value, ...options })
                 },
                 remove(name: string, options: CookieOptions) {
-                    request.cookies.set({
-                        name,
-                        value: '',
-                        ...options,
-                    })
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
-                    })
-                    response.cookies.set({
-                        name,
-                        value: '',
-                        ...options,
-                    })
+                    request.cookies.set({ name, value: '', ...options })
+                    response = NextResponse.next({ request: { headers: request.headers } })
+                    response.cookies.set({ name, value: '', ...options })
                 },
             },
         }
     )
 
-    // Refresh token
-    const { data: { user } } = await supabase.auth.getUser();
+    // Refresh session on every request (keeps tokens fresh)
+    const { data: { user } } = await supabase.auth.getUser()
 
-    const isAccessingAdmin = request.nextUrl.pathname.startsWith('/admin')
-    const isAccessingOwner = request.nextUrl.pathname.startsWith('/owner')
-    const isAccessingGuard = request.nextUrl.pathname.startsWith('/guard')
-    const isAccessingGuest = request.nextUrl.pathname.startsWith('/guest')
-
-    // Let public routes or static assets pass
-    if (!isAccessingAdmin && !isAccessingOwner && !isAccessingGuard && !isAccessingGuest) {
-        return response;
+    // — Root (login page) — if already logged in, redirect to dashboard
+    if (pathname === '/') {
+        if (user) {
+            const { data: profile } = await supabase
+                .from('profiles').select('role').eq('id', user.id).single()
+            const dest = ROLE_HOME[profile?.role || '']
+            if (dest) return NextResponse.redirect(new URL(dest, request.url))
+        }
+        return response
     }
 
-    // Guests don't need Supabase Auth, they connect via dynamic UUIDs
-    if (isAccessingGuest) {
-        return response;
+    // — auth/reset-password — always public
+    if (pathname.startsWith('/auth/')) {
+        return response
     }
 
-    if (user) {
-        // Fetch role from profile strictly to protect routes
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single();
-
-        const role = profile?.role || user.user_metadata?.role;
-
-        if (isAccessingAdmin && role !== 'SuperAdmin') {
-            return NextResponse.redirect(new URL('/', request.url));
-        }
-        if (isAccessingOwner && role !== 'SuperAdmin' && role !== 'GroupAdmin') {
-            return NextResponse.redirect(new URL('/', request.url));
-        }
-    } else if (isAccessingAdmin || isAccessingOwner || isAccessingGuard) {
+    // — Protected routes — unauthenticated users go to login
+    if (!user) {
         return NextResponse.redirect(new URL('/', request.url))
+    }
+
+    // — Fetch role for cross-role enforcement
+    const { data: profile } = await supabase
+        .from('profiles').select('role').eq('id', user.id).single()
+    const role = profile?.role || ''
+
+    // Block cross-role access (e.g., Guard trying to reach /admin)
+    if (pathname.startsWith('/admin') && role !== 'SuperAdmin') {
+        return NextResponse.redirect(new URL(ROLE_HOME[role] || '/', request.url))
+    }
+    if (pathname.startsWith('/owner') && role !== 'GroupAdmin' && role !== 'SuperAdmin') {
+        return NextResponse.redirect(new URL(ROLE_HOME[role] || '/', request.url))
+    }
+    if (pathname.startsWith('/guard') && role !== 'Guard' && role !== 'SuperAdmin') {
+        return NextResponse.redirect(new URL(ROLE_HOME[role] || '/', request.url))
     }
 
     return response
@@ -97,13 +86,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
     matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * Feel free to modify this pattern to include more paths.
-         */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|favicon.ico|logo|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }
