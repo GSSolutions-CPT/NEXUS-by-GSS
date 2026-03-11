@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Trash2, RefreshCw } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
 
 interface Visitor {
     id: string;
@@ -38,7 +39,35 @@ export default function ActiveVisitorsPage() {
         }
     }, []);
 
-    useEffect(() => { fetchVisitors(); }, [fetchVisitors]);
+    useEffect(() => { 
+        fetchVisitors(); 
+
+        const supabase = createClient();
+        let channel: ReturnType<typeof supabase.channel>;
+
+        const setupRealtime = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            
+            const unitId = user.app_metadata?.user_unit_id;
+            const filterStr = unitId ? `unit_id=eq.${unitId}` : undefined;
+
+            channel = supabase
+                .channel('visitor-updates')
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'visitors', filter: filterStr }, (payload) => {
+                    setVisitors(prev => prev.map(v => 
+                        v.id === payload.new.id ? { ...v, status: payload.new.status } as Visitor : v
+                    ));
+                })
+                .subscribe();
+        };
+
+        setupRealtime();
+
+        return () => {
+            if (channel) supabase.removeChannel(channel);
+        };
+    }, [fetchVisitors]);
 
     const handleRevoke = async (id: string, name: string) => {
         if (!confirm(`Revoke access for ${name}? They will no longer be able to enter.`)) return;
