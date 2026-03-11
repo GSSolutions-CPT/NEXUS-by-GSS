@@ -1,6 +1,8 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
 import { randomInt } from 'crypto';
+import { kv } from '@vercel/kv';
+import { Ratelimit } from '@upstash/ratelimit';
 
 // GET /api/visitors — Fetch visitors for the logged-in owner's unit
 export async function GET() {
@@ -68,6 +70,25 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Could not determine unit association." }, { status: 400 });
         }
 
+        // Rate Limiting (10 requests per minute per unit)
+        if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+            try {
+                const ratelimit = new Ratelimit({
+                    redis: kv,
+                    limiter: Ratelimit.slidingWindow(10, '1 m'),
+                    analytics: false,
+                });
+                
+                const { success: limitSuccess } = await ratelimit.limit(`visitors_post_${profile.unit_id}`);
+                if (!limitSuccess) {
+                    console.warn(`[${user.id}] Rate limit exceeded for unit ${profile.unit_id}`);
+                    return NextResponse.json({ error: "Rate limit exceeded. Please wait 1 minute." }, { status: 429 });
+                }
+            } catch (err) {
+                console.error("Rate limiting failed, proceeding without it:", err);
+            }
+        }
+
         // Validate access groups exist (non-blocking)
         try {
             const { data: unitMapping } = await supabase
@@ -82,28 +103,43 @@ export async function POST(request: Request) {
             console.error(`[${user.id}] Failed to validate unit mapping.`, err);
         }
 
-        const generatedPin = randomInt(10000, 100000).toString();
+        let generatedPin = "";
+        let insertErr = null;
+        let success = false;
+        let retries = 0;
 
-        // IMPORTANT: DB schema uses start_time & expiry_time (not valid_from/valid_until)
-        const visitorPayload = {
-            unit_id: profile.unit_id,
-            first_name: firstName,
-            last_name: lastName,
-            phone: phone,
-            pin_code: generatedPin,
-            start_time: new Date(validFrom).toISOString(),
-            expiry_time: new Date(validUntil).toISOString(),
-            needs_parking: needsParking,
-            status: 'Pending',
-        };
+        while (retries < 3 && !success) {
+            generatedPin = randomInt(10000, 100000).toString();
 
-        const { error: insertErr } = await supabase
-            .from("visitors")
-            .insert([visitorPayload]);
+            // IMPORTANT: DB schema uses start_time & expiry_time (not valid_from/valid_until)
+            const visitorPayload = {
+                unit_id: profile.unit_id,
+                first_name: firstName,
+                last_name: lastName,
+                phone: phone,
+                pin_code: generatedPin,
+                start_time: new Date(validFrom).toISOString(),
+                expiry_time: new Date(validUntil).toISOString(),
+                needs_parking: needsParking,
+                status: 'Pending',
+            };
 
-        if (insertErr) {
+            const result = await supabase.from("visitors").insert([visitorPayload]);
+            insertErr = result.error;
+
+            if (!insertErr) {
+                success = true;
+            } else if (insertErr.code === '23505') {
+                retries++;
+                console.warn(`[${user.id}] PIN collision detected. Retrying... (${retries}/3)`);
+            } else {
+                break; // Non-collision database error
+            }
+        }
+
+        if (!success) {
             console.error(`[${user.id}] Supabase Insert Error:`, insertErr);
-            return NextResponse.json({ error: "Database failed to save visitor." }, { status: 500 });
+            return NextResponse.json({ error: "Database failed to save visitor after retries." }, { status: 500 });
         }
 
         return NextResponse.json({

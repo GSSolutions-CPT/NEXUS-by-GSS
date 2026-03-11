@@ -16,7 +16,12 @@ export async function POST() {
         }
 
         const bridgeUrl = process.env.NEXT_PUBLIC_BRIDGE_URL || "http://localhost:5000";
-        const secret = process.env.BRIDGE_SHARED_SECRET || process.env.NEXT_PUBLIC_BRIDGE_URL || "changeme";
+        const secret = process.env.BRIDGE_SHARED_SECRET;
+        if (!secret) {
+            console.error("CRITICAL: BRIDGE_SHARED_SECRET is not configured.");
+            return NextResponse.json({ error: "Server Configuration Error" }, { status: 500 });
+        }
+        
         const endpoint = "auth"; // HMAC covers the endpoint name
 
         const timestamp = Math.floor(Date.now() / 1000).toString();

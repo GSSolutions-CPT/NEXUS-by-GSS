@@ -31,6 +31,31 @@ namespace ImproBridgeAPI.Services
         {
             _logger.LogInformation("Visitor Pull Sync Worker is starting.");
 
+            try 
+            {
+                var supabaseUrl = _configuration["SupabaseUrl"];
+                var serviceRoleKey = _configuration["SupabaseServiceRoleKey"];
+                
+                var options = new Supabase.SupabaseOptions { AutoConnectRealtime = true };
+                var supabase = new Supabase.Client(supabaseUrl!, serviceRoleKey, options);
+                await supabase.InitializeAsync();
+
+                var channel = supabase.Realtime.Channel("realtime", "public", "visitors");
+                channel.AddPostgresChangeHandler(Supabase.Realtime.PostgresChanges.PostgresChangesOptions.ListenType.All, (sender, args) => 
+                {
+                    _logger.LogInformation("Realtime EVENT: Visitor table change detected. Instantly triggering sync...");
+                    _ = ProcessPendingVisitorsAsync(stoppingToken);
+                });
+                
+                await channel.Subscribe();
+                _logger.LogInformation("Subscribed to Supabase Realtime for instant visitor sync.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to initialize Supabase Realtime. Falling back to 5-minute polling only.");
+            }
+
+            // Fallback polling loop
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
@@ -42,7 +67,8 @@ namespace ImproBridgeAPI.Services
                     _logger.LogError(ex, "An error occurred while attempting to poll for pending visitors.");
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
+                // Ditch the 60-second delay. Use 5 minutes as a fallback since Realtime handles instant syncs.
+                await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
             }
 
             _logger.LogInformation("Visitor Pull Sync Worker is stopping.");
@@ -50,13 +76,14 @@ namespace ImproBridgeAPI.Services
 
         private async Task ProcessPendingVisitorsAsync(CancellationToken stoppingToken)
         {
-            // FIXED: Must match CHECK constraint in database exactly (case-sensitive)
-            var getTaskUrl = "/rest/v1/visitors?status=eq.Pending&select=*";
-            var response = await _httpClient.GetAsync(getTaskUrl, stoppingToken);
+            // SECURED: Calling Supabase RPC which uses Postgres 'SELECT FOR UPDATE SKIP LOCKED'
+            // This guarantees that if multiple Bridge workers are running, they will not grab the same visitors.
+            var rpcUrl = "/rest/v1/rpc/get_pending_visitors_for_sync";
+            var response = await _httpClient.PostAsync(rpcUrl, null, stoppingToken);
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning($"Failed to query Supabase for pending visitors. Status Code: {response.StatusCode}");
+                _logger.LogWarning($"Failed to call RPC get_pending_visitors_for_sync. Status: {response.StatusCode}");
                 return;
             }
 
@@ -130,11 +157,15 @@ namespace ImproBridgeAPI.Services
                             string expiryDateStr = visitorRequest.ExpiryDateTime.Substring(0, 8);
                             string expiryTimeStr = visitorRequest.ExpiryDateTime.Substring(8, 6);
 
+                            string safeFirstName = System.Security.SecurityElement.Escape(visitorRequest.FirstName);
+                            string safeLastName = System.Security.SecurityElement.Escape(visitorRequest.LastName);
+                            string safePinCode = System.Security.SecurityElement.Escape(visitorRequest.PinCode);
+
                             string xmlPayload = $@"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
                             <protocol id=""82945242"" version=""1.0"">
                               <dbupdate>
-                                <Master id=""0"" current=""1"" firstName=""{visitorRequest.FirstName}"" lastName=""{visitorRequest.LastName}"">
-                                 <tag id=""0"" tagCode=""{visitorRequest.PinCode}"" expiryDate=""{expiryDateStr}"" expiryTime=""{expiryTimeStr}"" />
+                                <Master id=""0"" current=""1"" firstName=""{safeFirstName}"" lastName=""{safeLastName}"">
+                                 <tag id=""0"" tagCode=""{safePinCode}"" expiryDate=""{expiryDateStr}"" expiryTime=""{expiryTimeStr}"" />
                                 </Master>
                                 <withClause>tags</withClause>
                               </dbupdate>

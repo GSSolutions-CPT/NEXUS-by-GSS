@@ -47,9 +47,8 @@ export async function proxy(request: NextRequest) {
     // — Root (login page) — if already logged in, redirect to dashboard
     if (pathname === '/') {
         if (user) {
-            const { data: profile } = await supabase
-                .from('profiles').select('role').eq('id', user.id).single()
-            const dest = ROLE_HOME[profile?.role || '']
+            const role = user.app_metadata?.user_role || ''
+            const dest = ROLE_HOME[role as string]
             if (dest) return NextResponse.redirect(new URL(dest, request.url))
         }
         return response
@@ -65,10 +64,8 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL('/', request.url))
     }
 
-    // — Fetch role for cross-role enforcement
-    const { data: profile } = await supabase
-        .from('profiles').select('role').eq('id', user.id).single()
-    const role = profile?.role || ''
+    // — Fetch role from the custom JWT claims (zero database hits)
+    const role = (user.app_metadata?.user_role as string) || ''
 
     // Block cross-role access (e.g., Guard trying to reach /admin)
     if (pathname.startsWith('/admin') && role !== 'SuperAdmin') {
