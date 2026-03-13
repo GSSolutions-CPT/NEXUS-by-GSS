@@ -33,7 +33,7 @@ export default function PrivacyPolicyPage() {
 
           <h2 className="text-2xl font-semibold text-white mt-8 mb-4">1. Introduction</h2>
           <p>
-            Welcome to Global Security Solutions ("we", "our", "us"). We respect your privacy and are committed to protecting your personal data in accordance with the Protection of Personal Information Act (POPIA) of South Africa.
+            Welcome to Global Security Solutions (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;). We respect your privacy and are committed to protecting your personal data in accordance with the Protection of Personal Information Act (POPIA) of South Africa.
             This Privacy Policy explains how we collect, use, store, and share your personal information when you use our services and the Nexus Visitor Management System.
           </p>
 

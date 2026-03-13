@@ -64,7 +64,7 @@ export default function TermsOfServicePage() {
 
           <h2 className="text-2xl font-semibold text-white mt-8 mb-4">6. Limitation of Liability</h2>
           <p>
-            Global Security Solutions provides the Nexus platform "as is". While we strive for maximum uptime and security, we are not liable for incidental damages, unauthorized physical access due to hardware failure, or service interruptions caused by internet or power outages.
+            Global Security Solutions provides the Nexus platform &quot;as is&quot;. While we strive for maximum uptime and security, we are not liable for incidental damages, unauthorized physical access due to hardware failure, or service interruptions caused by internet or power outages.
           </p>
         </div>
       </main>
