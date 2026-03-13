@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import QRCode from "react-qr-code";
 import { createClient } from "@/utils/supabase/client";
+import Link from "next/link";
 
 interface VisitorPass {
     id: string;
@@ -199,9 +200,9 @@ export default function GuestPassPage({ params }: { params: { id: string } }) {
                     </a>
                     
                     <div className="mt-6 flex items-center justify-center gap-4 text-xs">
-                        <a href="/privacy" className="text-slate-500 hover:text-slate-300 transition-colors">Privacy Policy</a>
+                        <Link href="/privacy" className="text-slate-500 hover:text-slate-300 transition-colors">Privacy Policy</Link>
                         <span className="text-slate-700">•</span>
-                        <a href="/terms" className="text-slate-500 hover:text-slate-300 transition-colors">Terms of Service</a>
+                        <Link href="/terms" className="text-slate-500 hover:text-slate-300 transition-colors">Terms of Service</Link>
                     </div>
                 </div>
             </div>
