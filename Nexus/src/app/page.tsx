@@ -196,6 +196,11 @@ export default function Login() {
             Global Security Solutions
           </a><br />
           <span className="mt-2 block">24/7 Support: <a href="https://wa.me/27629558559" target="_blank" className="hover:text-slate-300">062 955 8559</a></span>
+          <span className="mt-4 flex items-center justify-center gap-3">
+            <a href="/privacy" className="hover:text-slate-300 transition-colors">Privacy</a>
+            <span className="text-slate-700">•</span>
+            <a href="/terms" className="hover:text-slate-300 transition-colors">Terms</a>
+          </span>
         </p>
       </main>
     </div>

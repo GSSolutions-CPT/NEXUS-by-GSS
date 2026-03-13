@@ -197,6 +197,12 @@ export default function GuestPassPage({ params }: { params: { id: string } }) {
                         <Image src="/logo-192.svg" alt="GSS Logo" width={16} height={16} className="opacity-80 grayscale" />
                         <span className="text-xs font-semibold text-slate-300">Global Security Solutions</span>
                     </a>
+                    
+                    <div className="mt-6 flex items-center justify-center gap-4 text-xs">
+                        <a href="/privacy" className="text-slate-500 hover:text-slate-300 transition-colors">Privacy Policy</a>
+                        <span className="text-slate-700">•</span>
+                        <a href="/terms" className="text-slate-500 hover:text-slate-300 transition-colors">Terms of Service</a>
+                    </div>
                 </div>
             </div>
 
