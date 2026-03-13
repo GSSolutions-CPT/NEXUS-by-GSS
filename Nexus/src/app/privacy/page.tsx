@@ -1,4 +1,5 @@
-import Navigation from "@/components/layout/Navigation"
+import Link from "next/link"
+import Image from "next/image"
 
 export const metadata = {
   title: "Privacy Policy | Global Security Solutions",
@@ -8,7 +9,19 @@ export const metadata = {
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-slate-950 font-sans selection:bg-sky-500/30">
-      <Navigation />
+      
+      {/* Header with Back Button */}
+      <header className="w-full border-b border-white/5 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <Image src="/logo-192.svg" alt="Logo" width={32} height={32} />
+            <span className="font-bold tracking-tight text-white hidden sm:block">Nexus Portal</span>
+          </Link>
+          <Link href="/" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">
+            Back to Home
+          </Link>
+        </div>
+      </header>
       
       <main className="max-w-4xl mx-auto px-6 py-24 sm:py-32">
         <h1 className="text-4xl font-bold text-white mb-8 tracking-tight">Privacy Policy</h1>
