@@ -42,8 +42,6 @@ export default function Login() {
       else if (profile.role === "GroupAdmin") router.push("/owner");
       else if (profile.role === "Guard") router.push("/guard");
       else throw new Error("Unknown role assignment.");
-
-      router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An unknown error occurred.");
     } finally {
