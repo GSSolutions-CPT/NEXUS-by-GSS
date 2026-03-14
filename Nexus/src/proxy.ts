@@ -1,5 +1,19 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { Redis } from '@upstash/redis'
+import { Ratelimit } from '@upstash/ratelimit'
+
+// Edge-compatible rate limiter for auth routes (5 req/min per IP)
+const authRatelimit = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
+  ? new Ratelimit({
+      redis: new Redis({
+        url: process.env.KV_REST_API_URL,
+        token: process.env.KV_REST_API_TOKEN,
+      }),
+      limiter: Ratelimit.slidingWindow(5, '1 m'),
+      analytics: false,
+    })
+  : null;
 
 const ROLE_HOME: Record<string, string> = {
     SuperAdmin: '/admin',
@@ -13,6 +27,15 @@ export async function proxy(request: NextRequest) {
     // API routes and static assets handle their own auth
     if (pathname.startsWith('/api/') || pathname.startsWith('/guest')) {
         return NextResponse.next({ request })
+    }
+
+    // Rate-limit auth-related routes to prevent brute-force attacks
+    if (authRatelimit && (pathname.startsWith('/auth') || (pathname === '/' && request.method === 'POST'))) {
+        const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
+        const { success } = await authRatelimit.limit(`auth_rate_${ip}`)
+        if (!success) {
+            return new NextResponse("Too Many Requests", { status: 429 })
+        }
     }
 
     let response = NextResponse.next({

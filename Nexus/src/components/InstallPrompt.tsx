@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X, Share, PlusSquare, Download } from "lucide-react";
+import Image from "next/image";
 
 export default function InstallPrompt() {
     const [isIOS, setIsIOS] = useState(false);
@@ -76,7 +77,7 @@ export default function InstallPrompt() {
                 </button>
 
                 <div className="flex-shrink-0 w-12 h-12 bg-sky-500 rounded-xl flex items-center justify-center p-2 mt-1">
-                    <img src="/logo-192.svg" alt="App Logo" className="w-full h-full object-contain" />
+                    <Image src="/logo-192.svg" alt="App Logo" width={48} height={48} className="w-full h-full object-contain" />
                 </div>
 
                 <div className="flex-1">
