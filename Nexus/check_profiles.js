@@ -15,6 +15,7 @@ const supabaseAdmin = createClient(
 
 async function check() {
     const { data, error } = await supabaseAdmin.from('profiles').select('id, role');
+    if (error) console.error("Error fetching profiles:", error);
     console.log("Profiles:", data);
     
     const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
