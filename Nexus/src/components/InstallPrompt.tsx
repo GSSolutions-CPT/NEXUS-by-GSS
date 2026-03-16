@@ -7,9 +7,11 @@ import Image from "next/image";
 export default function InstallPrompt() {
     const [isIOS, setIsIOS] = useState(false);
     const [isStandalone, setIsStandalone] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- BeforeInstallPromptEvent has no standard TS type
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [showPrompt, setShowPrompt] = useState(false);
 
+    /* eslint-disable react-hooks/set-state-in-effect, @typescript-eslint/no-explicit-any */
     useEffect(() => {
         // Check if the app is already installed
         const isAppInstalled = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;

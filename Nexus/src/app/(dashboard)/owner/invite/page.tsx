@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/utils/supabase/client";
-import { useRouter } from "next/navigation";
 
 export default function InviteVisitorPage() {
     const [inviteType, setInviteType] = useState("single");
@@ -19,8 +17,6 @@ export default function InviteVisitorPage() {
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-    const supabase = createClient();
-    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

@@ -55,7 +55,9 @@ export default function AdminCredentialRequestsPage() {
         setLoading(false);
     }, [supabase]);
 
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => { fetchRequests(); }, [fetchRequests]);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     const updateStatus = async (id: string, newStatus: RequestStatus) => {
         setUpdatingId(id);

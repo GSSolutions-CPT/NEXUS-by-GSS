@@ -65,10 +65,12 @@ export default function AdminDashboardPage() {
         }
     }, []);
 
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         fetchStats();
         checkBridge();
     }, [fetchStats, checkBridge]);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     const fmt = (d: string) => new Date(d).toLocaleString("en-ZA", { dateStyle: "short", timeStyle: "short" });
 
