@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Trash2, RefreshCw } from "lucide-react";
+import { Trash2, RefreshCw, Share2, Copy, Check, MessageCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 interface Visitor {
@@ -23,6 +23,8 @@ export default function ActiveVisitorsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [revoking, setRevoking] = useState<string | null>(null);
+    const [copiedId, setCopiedId] = useState<string | null>(null);
+    const [shareOpen, setShareOpen] = useState<string | null>(null);
 
     const fetchVisitors = useCallback(async () => {
         setLoading(true);
@@ -39,8 +41,8 @@ export default function ActiveVisitorsPage() {
         }
     }, []);
 
-    useEffect(() => { 
-        fetchVisitors(); 
+    useEffect(() => {
+        fetchVisitors();
 
         const supabase = createClient();
         let channel: ReturnType<typeof supabase.channel>;
@@ -48,14 +50,14 @@ export default function ActiveVisitorsPage() {
         const setupRealtime = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
-            
+
             const unitId = user.app_metadata?.user_unit_id;
             const filterStr = unitId ? `unit_id=eq.${unitId}` : undefined;
 
             channel = supabase
                 .channel('visitor-updates')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'visitors', filter: filterStr }, (payload) => {
-                    setVisitors(prev => prev.map(v => 
+                    setVisitors(prev => prev.map(v =>
                         v.id === payload.new.id ? { ...v, status: payload.new.status } as Visitor : v
                     ));
                 })
@@ -81,6 +83,27 @@ export default function ActiveVisitorsPage() {
             if (err instanceof Error) setError(err.message);
         } finally {
             setRevoking(null);
+        }
+    };
+
+    const getGuestLink = (id: string) => `${window.location.origin}/guest/${id}`;
+
+    const handleCopy = async (v: Visitor) => {
+        await navigator.clipboard.writeText(getGuestLink(v.id));
+        setCopiedId(v.id);
+        setTimeout(() => setCopiedId(null), 2000);
+    };
+
+    const handleWhatsApp = (v: Visitor) => {
+        const msg = encodeURIComponent(
+            `Hi ${v.first_name}, you've been invited! 🔐\n\nOpen your access pass:\n${getGuestLink(v.id)}\n\nPIN: ${v.pin_code}\n\nSecured by Global Security Solutions`
+        );
+        window.open(`https://wa.me/?text=${msg}`, "_blank");
+    };
+
+    const handleNativeShare = async (v: Visitor) => {
+        if (navigator.share) {
+            await navigator.share({ title: "Nexus Access Pass", text: `Your access pass: PIN ${v.pin_code}`, url: getGuestLink(v.id) });
         }
     };
 
@@ -202,16 +225,50 @@ export default function ActiveVisitorsPage() {
                                                 </span>
                                             </td>
                                             <td className="p-4 text-right pr-6">
-                                                {canRevoke && (
-                                                    <button onClick={() => handleRevoke(v.id, `${v.first_name} ${v.last_name}`)}
-                                                        disabled={revoking === v.id}
-                                                        className="text-slate-400 hover:text-rose-400 transition-colors p-2 disabled:opacity-50" title="Revoke Pass">
-                                                        {revoking === v.id
-                                                            ? <div className="w-4 h-4 border border-rose-400 border-t-transparent rounded-full animate-spin" />
-                                                            : <Trash2 className="w-4 h-4" />
-                                                        }
-                                                    </button>
-                                                )}
+                                                <div className="flex items-center justify-end gap-1 relative">
+                                                    {/* Share Button */}
+                                                    {v.status !== "Revoked" && (
+                                                        <div className="relative">
+                                                            <button onClick={() => setShareOpen(shareOpen === v.id ? null : v.id)}
+                                                                className="text-slate-400 hover:text-sky-400 transition-colors p-2" title="Share Pass">
+                                                                <Share2 className="w-4 h-4" />
+                                                            </button>
+                                                            {/* Share Dropdown */}
+                                                            {shareOpen === v.id && (
+                                                                <div className="absolute right-0 top-full mt-1 w-44 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 py-1 animate-in fade-in slide-in-from-top-2">
+                                                                    <button onClick={() => { handleCopy(v); setShareOpen(null); }}
+                                                                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+                                                                        {copiedId === v.id ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                                                                        {copiedId === v.id ? "Copied!" : "Copy Link"}
+                                                                    </button>
+                                                                    <button onClick={() => { handleWhatsApp(v); setShareOpen(null); }}
+                                                                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+                                                                        <MessageCircle className="w-4 h-4 text-emerald-400" />
+                                                                        WhatsApp
+                                                                    </button>
+                                                                    {typeof navigator !== "undefined" && "share" in navigator && (
+                                                                        <button onClick={() => { handleNativeShare(v); setShareOpen(null); }}
+                                                                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+                                                                            <Share2 className="w-4 h-4 text-indigo-400" />
+                                                                            More Options...
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {/* Revoke Button */}
+                                                    {canRevoke && (
+                                                        <button onClick={() => handleRevoke(v.id, `${v.first_name} ${v.last_name}`)}
+                                                            disabled={revoking === v.id}
+                                                            className="text-slate-400 hover:text-rose-400 transition-colors p-2 disabled:opacity-50" title="Revoke Pass">
+                                                            {revoking === v.id
+                                                                ? <div className="w-4 h-4 border border-rose-400 border-t-transparent rounded-full animate-spin" />
+                                                                : <Trash2 className="w-4 h-4" />
+                                                            }
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     );

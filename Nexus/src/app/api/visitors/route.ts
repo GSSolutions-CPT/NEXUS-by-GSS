@@ -52,11 +52,28 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { firstName, lastName, phone, validFrom, validUntil, needsParking } = body;
+        const { firstName, lastName, phone, validFrom, validUntil, needsParking, accessWindows } = body;
 
-        if (!firstName || !lastName || !phone || !validFrom || !validUntil) {
+        if (!firstName || !lastName || !phone) {
             console.warn(`[${user.id}] Missing required fields in visitor invitation.`);
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        }
+
+        // Compute overall start_time and expiry_time from access windows (or use legacy fields)
+        let computedStart: string;
+        let computedExpiry: string;
+
+        if (accessWindows && Array.isArray(accessWindows) && accessWindows.length > 0) {
+            // Sort windows by date, derive earliest start and latest end
+            const sorted = [...accessWindows].sort((a: { date: string }, b: { date: string }) => a.date.localeCompare(b.date));
+            computedStart = new Date(`${sorted[0].date}T${sorted[0].from}:00`).toISOString();
+            const last = sorted[sorted.length - 1];
+            computedExpiry = new Date(`${last.date}T${last.to}:00`).toISOString();
+        } else if (validFrom && validUntil) {
+            computedStart = new Date(validFrom).toISOString();
+            computedExpiry = new Date(validUntil).toISOString();
+        } else {
+            return NextResponse.json({ error: "Either access windows or valid dates are required." }, { status: 400 });
         }
 
         const { data: profile, error: profErr } = await supabase
@@ -82,7 +99,7 @@ export async function POST(request: Request) {
                     limiter: Ratelimit.slidingWindow(10, '1 m'),
                     analytics: false,
                 });
-                
+
                 const { success: limitSuccess } = await ratelimit.limit(`visitors_post_${profile.unit_id}`);
                 if (!limitSuccess) {
                     console.warn(`[${user.id}] Rate limit exceeded for unit ${profile.unit_id}`);
@@ -109,31 +126,37 @@ export async function POST(request: Request) {
 
         let generatedPin = "";
         let insertErr = null;
+        let insertedId: string | null = null;
         let success = false;
         let retries = 0;
 
         while (retries < 3 && !success) {
             generatedPin = randomInt(10000, 100000).toString();
 
-            // IMPORTANT: DB schema uses start_time & expiry_time (not valid_from/valid_until)
-            const visitorPayload = {
+            const visitorPayload: Record<string, unknown> = {
                 unit_id: profile.unit_id,
                 first_name: firstName,
                 last_name: lastName,
                 phone: phone,
                 pin_code: generatedPin,
-                start_time: new Date(validFrom).toISOString(),
-                expiry_time: new Date(validUntil).toISOString(),
+                start_time: computedStart,
+                expiry_time: computedExpiry,
                 needs_parking: needsParking,
                 status: 'Pending',
             };
 
-            const result = await supabase.from("visitors").insert([visitorPayload]);
+            // Only include access_windows if provided
+            if (accessWindows && Array.isArray(accessWindows) && accessWindows.length > 0) {
+                visitorPayload.access_windows = accessWindows;
+            }
+
+            const result = await supabase.from("visitors").insert([visitorPayload]).select("id").single();
             insertErr = result.error;
 
-            if (!insertErr) {
+            if (!insertErr && result.data) {
                 success = true;
-            } else if (insertErr.code === '23505') {
+                insertedId = result.data.id;
+            } else if (insertErr?.code === '23505') {
                 retries++;
                 console.warn(`[${user.id}] PIN collision detected. Retrying... (${retries}/3)`);
             } else {
@@ -141,15 +164,20 @@ export async function POST(request: Request) {
             }
         }
 
-        if (!success) {
+        if (!success || !insertedId) {
             console.error(`[${user.id}] Supabase Insert Error:`, insertErr);
             return NextResponse.json({ error: "Database failed to save visitor after retries." }, { status: 500 });
         }
 
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
+        const guestLink = siteUrl ? `${siteUrl}/guest/${insertedId}` : `/guest/${insertedId}`;
+
         return NextResponse.json({
             success: true,
             message: "Visitor invited. Awaiting hardware synchronization.",
-            pinCode: generatedPin
+            pinCode: generatedPin,
+            visitorId: insertedId,
+            guestLink: guestLink,
         });
 
     } catch (err: unknown) {

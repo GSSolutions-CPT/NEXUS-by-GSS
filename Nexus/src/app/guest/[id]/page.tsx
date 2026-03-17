@@ -6,6 +6,12 @@ import QRCode from "react-qr-code";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 
+interface AccessWindow {
+    date: string;
+    from: string;
+    to: string;
+}
+
 interface VisitorPass {
     id: string;
     first_name: string;
@@ -16,6 +22,7 @@ interface VisitorPass {
     needs_parking: boolean;
     status: string;
     unit_id: string;
+    access_windows?: AccessWindow[] | null;
 }
 
 interface UnitInfo {
@@ -36,7 +43,7 @@ export default function GuestPassPage({ params }: { params: { id: string } }) {
             try {
                 const { data: visitor, error: visErr } = await supabase
                     .from("visitors")
-                    .select("id, first_name, last_name, pin_code, start_time, expiry_time, needs_parking, status, unit_id")
+                    .select("id, first_name, last_name, pin_code, start_time, expiry_time, needs_parking, status, unit_id, access_windows")
                     .eq("id", params.id)
                     .single();
 
@@ -155,14 +162,45 @@ export default function GuestPassPage({ params }: { params: { id: string } }) {
 
                         {/* Time Window Details */}
                         <div className="w-full space-y-3 bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-400">Valid From:</span>
-                                <span className="font-semibold text-white">{fmt(pass.start_time)}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-400">Valid Until:</span>
-                                <span className={`font-semibold ${isExpired ? "text-rose-400" : "text-white"}`}>{fmt(pass.expiry_time)}</span>
-                            </div>
+                            {pass.access_windows && pass.access_windows.length > 0 ? (
+                                <>
+                                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Access Schedule</p>
+                                    <div className="space-y-2">
+                                        {pass.access_windows.map((w, i) => {
+                                            const today = new Date().toISOString().split('T')[0];
+                                            const isToday = w.date === today;
+                                            const isPast = w.date < today;
+                                            return (
+                                                <div key={i} className={`flex items-center justify-between text-sm p-2.5 rounded-lg border ${isToday ? 'bg-sky-500/10 border-sky-500/30 ring-1 ring-sky-500/20' :
+                                                        isPast ? 'bg-slate-900/30 border-slate-800/30 opacity-50' :
+                                                            'bg-slate-900/50 border-slate-800/50'
+                                                    }`}>
+                                                    <div className="flex items-center gap-2">
+                                                        {isToday && <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />}
+                                                        <span className={`font-medium ${isToday ? 'text-sky-300' : 'text-slate-300'}`}>
+                                                            {new Date(w.date + 'T00:00:00').toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                                        </span>
+                                                    </div>
+                                                    <span className={`font-mono text-xs font-semibold ${isToday ? 'text-sky-400' : 'text-slate-400'}`}>
+                                                        {w.from} – {w.to}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-slate-400">Valid From:</span>
+                                        <span className="font-semibold text-white">{fmt(pass.start_time)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-slate-400">Valid Until:</span>
+                                        <span className={`font-semibold ${isExpired ? "text-rose-400" : "text-white"}`}>{fmt(pass.expiry_time)}</span>
+                                    </div>
+                                </>
+                            )}
                             {pass.needs_parking && (
                                 <div className="flex justify-between items-center text-sm pt-3 border-t border-slate-800/50 mt-1">
                                     <span className="text-slate-400">Visitor Parking:</span>
@@ -198,7 +236,7 @@ export default function GuestPassPage({ params }: { params: { id: string } }) {
                         <Image src="/logo-192.svg" alt="GSS Logo" width={16} height={16} className="opacity-80 grayscale" />
                         <span className="text-xs font-semibold text-slate-300">Global Security Solutions</span>
                     </a>
-                    
+
                     <div className="mt-6 flex items-center justify-center gap-4 text-xs">
                         <Link href="/privacy" className="text-slate-500 hover:text-slate-300 transition-colors">Privacy Policy</Link>
                         <span className="text-slate-700">•</span>
