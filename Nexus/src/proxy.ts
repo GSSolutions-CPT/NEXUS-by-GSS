@@ -5,15 +5,15 @@ import { Ratelimit } from '@upstash/ratelimit'
 
 // Edge-compatible rate limiter for auth routes (5 req/min per IP)
 const authRatelimit = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
-  ? new Ratelimit({
-      redis: new Redis({
-        url: process.env.KV_REST_API_URL,
-        token: process.env.KV_REST_API_TOKEN,
-      }),
-      limiter: Ratelimit.slidingWindow(5, '1 m'),
-      analytics: false,
+    ? new Ratelimit({
+        redis: new Redis({
+            url: process.env.KV_REST_API_URL,
+            token: process.env.KV_REST_API_TOKEN,
+        }),
+        limiter: Ratelimit.slidingWindow(5, '1 m'),
+        analytics: false,
     })
-  : null;
+    : null;
 
 const ROLE_HOME: Record<string, string> = {
     SuperAdmin: '/admin',
@@ -67,11 +67,25 @@ export async function proxy(request: NextRequest) {
     // Refresh session on every request (keeps tokens fresh)
     const { data: { user } } = await supabase.auth.getUser()
 
+    // Helper: resolve role from JWT claims first, then fall back to profiles table
+    const resolveRole = async (): Promise<string> => {
+        if (!user) return ''
+        const jwtRole = user.app_metadata?.user_role as string
+        if (jwtRole) return jwtRole
+        // Fallback: query the profiles table (source of truth)
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+        return profile?.role || ''
+    }
+
     // — Root (login page) — if already logged in, redirect to dashboard
     if (pathname === '/') {
         if (user) {
-            const role = user.app_metadata?.user_role || ''
-            const dest = ROLE_HOME[role as string]
+            const role = await resolveRole()
+            const dest = ROLE_HOME[role]
             if (dest) return NextResponse.redirect(new URL(dest, request.url))
         }
         return response
@@ -87,8 +101,8 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL('/', request.url))
     }
 
-    // — Fetch role from the custom JWT claims (zero database hits)
-    const role = (user.app_metadata?.user_role as string) || ''
+    // — Resolve role (JWT claim → profiles table fallback)
+    const role = await resolveRole()
 
     // Block cross-role access (e.g., Guard trying to reach /admin)
     if (pathname.startsWith('/admin') && role !== 'SuperAdmin') {
