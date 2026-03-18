@@ -1,9 +1,8 @@
-import pg from 'pg';
-const { Client } = pg;
-import fs from 'fs';
+const { Client } = require('pg');
+const fs = require('fs');
 
 const connectionString = 'postgresql://postgres:llW6q88vwkKdGMDZ@db.fgpwdseanjsviyonyovc.supabase.co:5432/postgres';
-const sqlFilePath = 'C:\\Users\\User\\OneDrive\\Desktop\\V5API\\supabase_schema.sql';
+const sqlFilePath = process.argv[2] || 'C:\\Users\\User\\OneDrive\\Desktop\\V5API\\supabase_schema.sql';
 
 const client = new Client({
   connectionString: connectionString,
