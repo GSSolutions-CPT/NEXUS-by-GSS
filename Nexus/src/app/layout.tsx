@@ -3,6 +3,7 @@ import { Montserrat } from "next/font/google";
 import "./globals.css";
 
 import InstallPrompt from "@/components/InstallPrompt";
+import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -30,6 +31,7 @@ export default function RootLayout({
         className={`${montserrat.variable} font-sans antialiased bg-slate-900 text-slate-100 min-h-screen selection:bg-sky-500/30`}
       >
         {children}
+        <ServiceWorkerRegistration />
         <InstallPrompt />
       </body>
     </html>
