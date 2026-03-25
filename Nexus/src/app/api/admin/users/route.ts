@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
 import { randomInt } from 'crypto';
+import { userSchema } from '@/lib/validations';
 
 // GET /api/admin/users — List all users with profiles
 export async function GET() {
@@ -110,11 +111,11 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { email, firstName, lastName, role, unitId } = body;
-
-        if (!email || !firstName || !lastName || !role) {
-            return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        const parseResult = userSchema.safeParse(body);
+        if (!parseResult.success) {
+            return NextResponse.json({ error: "Invalid input data", details: parseResult.error.flatten() }, { status: 400 });
         }
+        const { email, firstName, lastName, role, unitId } = parseResult.data;
 
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         if (!serviceRoleKey) {

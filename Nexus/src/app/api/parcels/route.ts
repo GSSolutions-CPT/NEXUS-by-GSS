@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { parcelSchema } from '@/lib/validations';
 
 export async function GET() {
     try {
@@ -72,11 +73,13 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { unit_id, courier_name, recipient_name } = body;
-
-        if (!unit_id || !courier_name) {
-            return NextResponse.json({ error: "Unit ID and Courier Name are required" }, { status: 400 });
+        
+        const parseResult = parcelSchema.safeParse(body);
+        if (!parseResult.success) {
+            return NextResponse.json({ error: "Invalid input data", details: parseResult.error.flatten() }, { status: 400 });
         }
+        
+        const { unit_id, courier_name, recipient_name } = parseResult.data;
 
         const { data, error } = await supabase
             .from("parcels")

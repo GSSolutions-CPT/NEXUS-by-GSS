@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { maintenanceSchema } from '@/lib/validations';
 
 export async function GET() {
     try {
@@ -74,11 +75,13 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { title, description, priority, category, image_url } = body;
-
-        if (!title || !description) {
-            return NextResponse.json({ error: "Title and description are required" }, { status: 400 });
+        
+        const parseResult = maintenanceSchema.safeParse(body);
+        if (!parseResult.success) {
+            return NextResponse.json({ error: "Invalid input data", details: parseResult.error.flatten() }, { status: 400 });
         }
+        
+        const { title, description, category, priority, image_url } = parseResult.data;
 
         const { data, error } = await supabase
             .from("maintenance_tickets")

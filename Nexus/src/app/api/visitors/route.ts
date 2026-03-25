@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { randomInt } from 'crypto';
 import { Redis } from '@upstash/redis';
 import { Ratelimit } from '@upstash/ratelimit';
+import { visitorSchema } from '@/lib/validations';
 
 // GET /api/visitors — Fetch visitors for the logged-in owner's unit
 export async function GET() {
@@ -52,12 +53,14 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { firstName, lastName, phone, validFrom, validUntil, needsParking, accessWindows } = body;
-
-        if (!firstName || !lastName || !phone) {
-            console.warn(`[${user.id}] Missing required fields in visitor invitation.`);
-            return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        
+        const parseResult = visitorSchema.safeParse(body);
+        if (!parseResult.success) {
+            console.warn(`[${user.id}] Validation Error:`, parseResult.error.flatten());
+            return NextResponse.json({ error: "Invalid input data", details: parseResult.error.flatten() }, { status: 400 });
         }
+        
+        const { firstName, lastName, phone, validFrom, validUntil, needsParking, accessWindows } = parseResult.data;
 
         // Compute overall start_time and expiry_time from access windows (or use legacy fields)
         let computedStart: string;
