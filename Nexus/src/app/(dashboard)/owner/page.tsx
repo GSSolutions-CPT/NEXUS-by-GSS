@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/utils/supabase/client";
@@ -28,7 +28,7 @@ export default function OwnerDashboardPage() {
     });
     const [recentLogs, setRecentLogs] = useState<RecentLog[]>([]);
     const [loading, setLoading] = useState(true);
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -59,14 +59,15 @@ export default function OwnerDashboardPage() {
         const tomorrowStart = new Date(now); tomorrowStart.setDate(now.getDate() + 1); tomorrowStart.setHours(0, 0, 0, 0);
         const tomorrowEnd = new Date(tomorrowStart); tomorrowEnd.setHours(23, 59, 59, 999);
 
-        const baseQuery = unitId
+        // Factory function: each call returns an independent query builder
+        const mkQuery = () => unitId
             ? supabase.from("visitors").select("id", { count: "exact", head: true }).eq("unit_id", unitId)
             : null;
 
         const [activeRes, scheduledRes, totalRes, logsRes] = await Promise.all([
-            baseQuery?.lte("start_time", todayEnd.toISOString()).gte("expiry_time", todayStart.toISOString()).neq("status", "Revoked"),
-            baseQuery?.gte("start_time", tomorrowStart.toISOString()).lte("start_time", tomorrowEnd.toISOString()).neq("status", "Revoked"),
-            baseQuery,
+            mkQuery()?.lte("start_time", todayEnd.toISOString()).gte("expiry_time", todayStart.toISOString()).neq("status", "Revoked"),
+            mkQuery()?.gte("start_time", tomorrowStart.toISOString()).lte("start_time", tomorrowEnd.toISOString()).neq("status", "Revoked"),
+            mkQuery(),
             unitId
                 ? supabase.from("audit_logs").select("id, event_type, actor_name, details, created_at")
                     .eq("unit_id", unitId).order("created_at", { ascending: false }).limit(5)

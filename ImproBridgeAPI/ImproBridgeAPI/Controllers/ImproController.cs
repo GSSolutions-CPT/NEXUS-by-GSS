@@ -120,11 +120,15 @@ namespace ImproBridgeAPI.Controllers
                 }
 
                 // Finally, Build the XML payload modeled exactly after the Postman "insertMasterWithTag" example for final tag linkage
+                string safeFirstName = System.Security.SecurityElement.Escape(request.FirstName);
+                string safeLastName = System.Security.SecurityElement.Escape(request.LastName);
+                string safePinCode = System.Security.SecurityElement.Escape(request.PinCode);
+
                 string xmlPayload = $@"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
                 <protocol id=""82945242"" version=""1.0"">
                   <dbupdate>
-                    <Master id=""0"" current=""1"" firstName=""{request.FirstName}"" lastName=""{request.LastName}"">
-                     <tag id=""0"" tagCode=""{request.PinCode}"" expiryDate=""{request.ExpiryDateTime.Substring(0, 8)}"" expiryTime=""{request.ExpiryDateTime.Substring(8, 6)}"" />
+                    <Master id=""0"" current=""1"" firstName=""{safeFirstName}"" lastName=""{safeLastName}"">
+                     <tag id=""0"" tagCode=""{safePinCode}"" expiryDate=""{request.ExpiryDateTime.Substring(0, 8)}"" expiryTime=""{request.ExpiryDateTime.Substring(8, 6)}"" />
                     </Master>
                     <withClause>tags</withClause>
                   </dbupdate>

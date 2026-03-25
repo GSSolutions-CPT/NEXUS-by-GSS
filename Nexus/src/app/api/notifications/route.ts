@@ -20,6 +20,11 @@ export async function GET() {
         const isSuperAdmin = profile?.role === 'SuperAdmin';
         const isGroupAdmin = profile?.role === 'GroupAdmin';
 
+        // Guards don't receive dashboard notifications
+        if (profile?.role === 'Guard') {
+            return NextResponse.json({ notifications: [] });
+        }
+
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
         const supabaseAdmin = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,

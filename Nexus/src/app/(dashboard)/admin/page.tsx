@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 
@@ -25,7 +25,7 @@ export default function AdminDashboardPage() {
     const [recentLogs, setRecentLogs] = useState<RecentLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [bridgeStatus, setBridgeStatus] = useState<"checking" | "online" | "offline">("checking");
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
 
     const fetchStats = useCallback(async () => {
         setLoading(true);
@@ -53,13 +53,14 @@ export default function AdminDashboardPage() {
         setLoading(false);
     }, [supabase]);
 
-    // Ping the C# Bridge to check its status
+    // Check Bridge status via server-side proxy (avoids leaking internal IP)
     const checkBridge = useCallback(async () => {
         setBridgeStatus("checking");
         try {
-            const bridgeUrl = process.env.NEXT_PUBLIC_BRIDGE_URL || "http://localhost:5000";
-            const res = await fetch(`${bridgeUrl}/health`, { signal: AbortSignal.timeout(3000) });
-            setBridgeStatus(res.ok ? "online" : "offline");
+            const res = await fetch("/api/admin/bridge-health");
+            if (!res.ok) { setBridgeStatus("offline"); return; }
+            const data = await res.json();
+            setBridgeStatus(data.status === "online" ? "online" : "offline");
         } catch {
             setBridgeStatus("offline");
         }

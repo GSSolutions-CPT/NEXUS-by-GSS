@@ -22,7 +22,7 @@ export async function POST() {
             return NextResponse.json({ error: "Server Configuration Error" }, { status: 500 });
         }
         
-        const endpoint = "auth"; // HMAC covers the endpoint name
+        const endpoint = "door/open"; // HMAC covers the endpoint name
 
         const timestamp = Math.floor(Date.now() / 1000).toString();
         const message = `${timestamp}:${endpoint}`;

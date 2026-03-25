@@ -28,7 +28,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "Supabase",
             ValidAudience = builder.Configuration["Jwt:Audience"] ?? "authenticated",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "PLACEHOLDER_SUPER_SECRET_KEY_REPLACE_ME_BEFORE_PRODUCTION!"))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+                builder.Configuration["Jwt:Key"]
+                ?? throw new InvalidOperationException("FATAL: 'Jwt:Key' is not configured. Cannot start without a signing key.")))
         };
     });
 

@@ -46,19 +46,29 @@ namespace ImproBridgeAPI.Services
             // Wait 10 seconds on startup to let the Impro SDK initialize
             await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
 
+            // Fallback polling loop with exponential backoff on failures
+            int consecutiveFailures = 0;
+            const int baseDelaySeconds = 30;
+            const int maxDelaySeconds = 300; // 5 minutes cap
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
                     await SyncAuditLogsAsync(stoppingToken);
+                    consecutiveFailures = 0; // Reset on success
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "An error occurred while syncing audit logs from hardware.");
+                    consecutiveFailures++;
+                    var backoffSeconds = Math.Min(baseDelaySeconds * (int)Math.Pow(2, consecutiveFailures - 1), maxDelaySeconds);
+                    _logger.LogError(ex, "Audit sync failed (attempt {Attempt}). Next retry in {Delay}s.", consecutiveFailures, backoffSeconds);
+                    await Task.Delay(TimeSpan.FromSeconds(backoffSeconds), stoppingToken);
+                    continue; // Skip the normal delay below
                 }
 
-                // Poll every 30 seconds for near real-time audit visibility
-                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+                // Normal polling interval
+                await Task.Delay(TimeSpan.FromSeconds(baseDelaySeconds), stoppingToken);
             }
 
             _logger.LogInformation("Audit Sync Worker is stopping.");

@@ -47,7 +47,10 @@ export async function GET() {
         }
 
         // Fetch auth users to get emails and last sign in
-        const { data: authUsers, error: authListErr } = await supabaseAdmin.auth.admin.listUsers();
+        const { data: authUsers, error: authListErr } = await supabaseAdmin.auth.admin.listUsers({
+            page: 1,
+            perPage: 200,
+        });
 
         if (authListErr) {
             console.error("Failed to list auth users:", authListErr);
