@@ -55,20 +55,28 @@ namespace ImproBridgeAPI.Services
                 _logger.LogError(ex, "Failed to initialize Supabase Realtime. Falling back to 5-minute polling only.");
             }
 
-            // Fallback polling loop
+            // Fallback polling loop with exponential backoff on failures
+            int consecutiveFailures = 0;
+            const int baseDelayMinutes = 5;
+            const int maxDelayMinutes = 30;
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
                     await ProcessPendingVisitorsAsync(stoppingToken);
+                    consecutiveFailures = 0; // Reset on success
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "An error occurred while attempting to poll for pending visitors.");
+                    consecutiveFailures++;
+                    var backoffMinutes = Math.Min(baseDelayMinutes * (int)Math.Pow(2, consecutiveFailures - 1), maxDelayMinutes);
+                    _logger.LogError(ex, "Polling failed (attempt {Attempt}). Next retry in {Delay} minutes.", consecutiveFailures, backoffMinutes);
+                    await Task.Delay(TimeSpan.FromMinutes(backoffMinutes), stoppingToken);
+                    continue; // Skip the normal delay below
                 }
 
-                // Ditch the 60-second delay. Use 5 minutes as a fallback since Realtime handles instant syncs.
-                await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(baseDelayMinutes), stoppingToken);
             }
 
             _logger.LogInformation("Visitor Pull Sync Worker is stopping.");

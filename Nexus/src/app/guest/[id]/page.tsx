@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import Image from "next/image";
 import QRCode from "react-qr-code";
-import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 
 interface AccessWindow {
@@ -21,48 +20,38 @@ interface VisitorPass {
     expiry_time: string;
     needs_parking: boolean;
     status: string;
-    unit_id: string;
     access_windows?: AccessWindow[] | null;
 }
 
-interface UnitInfo {
-    name: string;
-}
-
-export default function GuestPassPage({ params }: { params: { id: string } }) {
+export default function GuestPassPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
     const [pass, setPass] = useState<VisitorPass | null>(null);
-    const [unit, setUnit] = useState<UnitInfo | null>(null);
+    const [unitName, setUnitName] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [mounted, setMounted] = useState(false);
-    const supabase = createClient();
 
     useEffect(() => {
         setMounted(true);
         const fetchPass = async () => {
             try {
-                const { data: visitor, error: visErr } = await supabase
-                    .from("visitors")
-                    .select("id, first_name, last_name, pin_code, start_time, expiry_time, needs_parking, status, unit_id, access_windows")
-                    .eq("id", params.id)
-                    .single();
+                // Fetch from server-side API route instead of querying Supabase directly
+                const res = await fetch(`/api/guest/${id}`);
 
-                if (visErr || !visitor) {
+                if (!res.ok) {
                     setError("Pass not found. Please check your link or contact the property owner.");
                     return;
                 }
 
-                setPass(visitor);
+                const data = await res.json();
 
-                // Fetch unit name for display
-                if (visitor.unit_id) {
-                    const { data: unitData } = await supabase
-                        .from("units")
-                        .select("name")
-                        .eq("id", visitor.unit_id)
-                        .single();
-                    if (unitData) setUnit(unitData);
+                if (!data.pass) {
+                    setError("Pass not found. Please check your link or contact the property owner.");
+                    return;
                 }
+
+                setPass(data.pass);
+                if (data.unitName) setUnitName(data.unitName);
             } catch {
                 setError("Unable to load your pass. Please try again.");
             } finally {
@@ -71,7 +60,7 @@ export default function GuestPassPage({ params }: { params: { id: string } }) {
         };
 
         fetchPass();
-    }, [params.id, supabase]);
+    }, [id]);
 
     if (!mounted || loading) {
         return (
@@ -122,7 +111,7 @@ export default function GuestPassPage({ params }: { params: { id: string } }) {
                 </div>
                 <h1 className="text-2xl font-bold tracking-tight text-center mb-1">Nexus Access Pass</h1>
                 <p className="text-slate-400 text-sm text-center">
-                    {unit ? `Invited by ${unit.name}` : "Digital access credential"}
+                    {unitName ? `Invited by ${unitName}` : "Digital access credential"}
                 </p>
             </div>
 

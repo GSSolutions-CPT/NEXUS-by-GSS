@@ -88,7 +88,12 @@ export async function POST(request: Request) {
         }
 
         // Rate Limiting (10 requests per minute per unit)
-        if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+        if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+            console.error("CRITICAL: Redis KV credentials missing. Rate limiting is disabled.");
+            if (process.env.NODE_ENV === 'production') {
+                return NextResponse.json({ error: "Internal Server Configuration Error" }, { status: 500 });
+            }
+        } else {
             try {
                 const redisClient = new Redis({
                     url: process.env.KV_REST_API_URL,
@@ -106,7 +111,10 @@ export async function POST(request: Request) {
                     return NextResponse.json({ error: "Rate limit exceeded. Please wait 1 minute." }, { status: 429 });
                 }
             } catch (err) {
-                console.error("Rate limiting failed, proceeding without it:", err);
+                console.error("Rate limiting error — failing closed in production:", err);
+                if (process.env.NODE_ENV === 'production') {
+                    return NextResponse.json({ error: "Internal Server Configuration Error" }, { status: 500 });
+                }
             }
         }
 

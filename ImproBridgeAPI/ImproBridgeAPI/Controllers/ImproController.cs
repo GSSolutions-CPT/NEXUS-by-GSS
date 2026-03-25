@@ -48,15 +48,24 @@ namespace ImproBridgeAPI.Controllers
             }
 
             var message = $"{timestamp}:{endpoint}";
-            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
-            var expectedSig = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(message))).ToLowerInvariant();
-            var providedSig = sigHeader.ToString().ToLowerInvariant();
 
-            // Constant-time comparison to prevent timing attacks
-            return CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(expectedSig),
-                Encoding.UTF8.GetBytes(providedSig)
-            );
+            // 1. Compute expected hash as raw bytes
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+            byte[] expectedHashBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(message));
+
+            // 2. Parse the provided hex signature into raw bytes
+            byte[] providedHashBytes;
+            try
+            {
+                providedHashBytes = Convert.FromHexString(sigHeader.ToString());
+            }
+            catch (FormatException)
+            {
+                return false; // Invalid hex string
+            }
+
+            // 3. Constant-time comparison of raw byte arrays
+            return CryptographicOperations.FixedTimeEquals(expectedHashBytes, providedHashBytes);
         }
 
         [HttpPost("auth")]
