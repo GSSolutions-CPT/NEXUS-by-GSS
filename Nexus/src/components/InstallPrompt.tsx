@@ -6,22 +6,35 @@ import Image from "next/image";
 
 export default function InstallPrompt() {
     const [isIOS, setIsIOS] = useState(false);
-    const [isStandalone, setIsStandalone] = useState(false);
+    const [isStandalone, setIsStandalone] = useState(() => {
+        if (typeof window === "undefined") return false;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
+    });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- BeforeInstallPromptEvent has no standard TS type
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [showPrompt, setShowPrompt] = useState(false);
 
-    /* eslint-disable react-hooks/set-state-in-effect, @typescript-eslint/no-explicit-any */
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     useEffect(() => {
-        // Check if the app is already installed
-        const isAppInstalled = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
-        setIsStandalone(isAppInstalled);
+        // If running as installed app, clear the dismissed flag so if they uninstall,
+        // the prompt will appear again next time they visit the browser version.
+        if (isStandalone) {
+            localStorage.removeItem("installPromptDismissed");
+            return; // Don't show prompt inside the installed app
+        }
 
         // Check if user previously dismissed the prompt
-        const hasDismissed = localStorage.getItem("installPromptDismissed") === "true";
-
-        if (isAppInstalled || hasDismissed) {
-            return;
+        const dismissedAt = localStorage.getItem("installPromptDismissed");
+        if (dismissedAt) {
+            // Re-show the prompt after 7 days
+            const dismissedTime = parseInt(dismissedAt, 10);
+            const sevenDays = 7 * 24 * 60 * 60 * 1000;
+            if (Date.now() - dismissedTime < sevenDays) {
+                return;
+            }
+            // Expired — remove and re-show
+            localStorage.removeItem("installPromptDismissed");
         }
 
         // Detect iOS
@@ -30,15 +43,17 @@ export default function InstallPrompt() {
         setIsIOS(isIosDevice);
 
         if (isIosDevice) {
-            // iOS doesn't support beforeinstallprompt, show custom prompt immediately
-            setShowPrompt(true);
+            // iOS doesn't support beforeinstallprompt, show custom prompt after a short delay
+            const timer = setTimeout(() => setShowPrompt(true), 2000);
+            return () => clearTimeout(timer);
         }
 
         // Android / Chrome desktop support
         const handleBeforeInstallPrompt = (e: any) => {
             e.preventDefault();
             setDeferredPrompt(e);
-            setShowPrompt(true);
+            // Small delay to not interrupt the user immediately
+            setTimeout(() => setShowPrompt(true), 2000);
         };
 
         window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -46,7 +61,7 @@ export default function InstallPrompt() {
         return () => {
             window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
         };
-    }, []);
+    }, [isStandalone]);
 
     const handleInstallClick = async () => {
         if (!deferredPrompt) return;
@@ -56,6 +71,8 @@ export default function InstallPrompt() {
 
         if (outcome === "accepted") {
             setShowPrompt(false);
+            // Clear dismissed flag since they installed
+            localStorage.removeItem("installPromptDismissed");
         }
 
         setDeferredPrompt(null);
@@ -63,51 +80,57 @@ export default function InstallPrompt() {
 
     const handleDismiss = () => {
         setShowPrompt(false);
-        localStorage.setItem("installPromptDismissed", "true");
+        // Store timestamp so we can re-show after 7 days
+        localStorage.setItem("installPromptDismissed", Date.now().toString());
     };
 
     if (!showPrompt || isStandalone) return null;
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-[100] p-4 bg-slate-800/95 backdrop-blur-md border-t border-slate-700 shadow-2xl safe-area-pb">
-            <div className="max-w-md mx-auto relative flex items-start gap-4">
-                <button
-                    onClick={handleDismiss}
-                    className="absolute -top-2 -right-2 p-2 text-slate-400 hover:text-white"
-                >
-                    <X className="w-5 h-5" />
-                </button>
+        <div className="fixed bottom-0 left-0 right-0 z-[100] animate-in slide-in-from-bottom duration-300">
+            <div className="p-3 md:p-4 bg-gradient-to-t from-slate-900 via-slate-800/98 to-slate-800/95 backdrop-blur-xl border-t border-sky-500/20 shadow-[0_-8px_30px_rgba(0,0,0,0.4)]">
+                <div className="max-w-md mx-auto relative flex items-start gap-3 md:gap-4">
+                    <button
+                        onClick={handleDismiss}
+                        className="absolute -top-1 -right-1 p-1.5 text-slate-400 hover:text-white rounded-full hover:bg-slate-700/50 transition-colors"
+                        aria-label="Dismiss"
+                    >
+                        <X className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
 
-                <div className="flex-shrink-0 w-12 h-12 bg-sky-500 rounded-xl flex items-center justify-center p-2 mt-1">
-                    <Image src="/logo-192.svg" alt="App Logo" width={48} height={48} className="w-full h-full object-contain" />
-                </div>
+                    <div className="flex-shrink-0 w-11 h-11 md:w-12 md:h-12 bg-gradient-to-br from-sky-500 to-indigo-600 rounded-xl flex items-center justify-center p-2 mt-0.5 shadow-lg shadow-sky-500/20">
+                        <Image src="/logo-192.svg" alt="Nexus" width={48} height={48} className="w-full h-full object-contain" />
+                    </div>
 
-                <div className="flex-1">
-                    <h3 className="text-white font-semibold text-base mb-1">Install Nexus App</h3>
+                    <div className="flex-1 pr-6">
+                        <h3 className="text-white font-semibold text-sm md:text-base mb-0.5">Get Nexus App</h3>
 
-                    {isIOS ? (
-                        <div className="text-slate-300 text-sm leading-snug">
-                            To install this app on your iPhone: tap{" "}
-                            <span className="inline-block align-middle mx-1 p-1 bg-slate-700 rounded"><Share className="w-3 h-3 text-sky-400" /></span>
-                            then scroll down and tap{" "}
-                            <strong className="text-white whitespace-nowrap">
-                                <PlusSquare className="w-3 h-3 inline mr-1" />Add to Home Screen
-                            </strong>.
-                        </div>
-                    ) : (
-                        <div className="flex flex-col gap-3">
-                            <p className="text-slate-300 text-sm leading-snug">
-                                Install our app for quicker access and a better mobile experience.
-                            </p>
-                            <button
-                                onClick={handleInstallClick}
-                                className="bg-sky-500 hover:bg-sky-400 text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors w-full sm:w-auto"
-                            >
-                                <Download className="w-4 h-4" />
-                                Install App
-                            </button>
-                        </div>
-                    )}
+                        {isIOS ? (
+                            <div className="text-slate-300 text-xs md:text-sm leading-snug">
+                                Tap{" "}
+                                <span className="inline-flex items-center align-middle mx-0.5 px-1 py-0.5 bg-slate-700 rounded">
+                                    <Share className="w-3 h-3 text-sky-400" />
+                                </span>{" "}
+                                then{" "}
+                                <strong className="text-white whitespace-nowrap">
+                                    <PlusSquare className="w-3 h-3 inline mr-0.5" />Add to Home Screen
+                                </strong>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-2">
+                                <p className="text-slate-300 text-xs md:text-sm leading-snug">
+                                    Faster access, works offline, feels native.
+                                </p>
+                                <button
+                                    onClick={handleInstallClick}
+                                    className="bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all w-full text-sm shadow-lg shadow-sky-500/20 active:scale-[0.97]"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    Install App
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

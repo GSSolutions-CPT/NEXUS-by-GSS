@@ -16,8 +16,13 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: "/logo-192.svg",
-    apple: "/logo-192.svg" // Add apple touch icon
-  }
+    apple: "/logo-192.svg"
+  },
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export default function RootLayout({

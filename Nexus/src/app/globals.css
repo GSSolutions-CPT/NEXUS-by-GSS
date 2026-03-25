@@ -7,5 +7,37 @@
 @layer base {
   body {
     @apply bg-slate-900 text-slate-100 font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-overflow-scrolling: touch;
   }
+
+  /* Safe areas for notched devices */
+  html {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+}
+
+/* PWA install banner bottom safe-area padding */
+.safe-area-pb {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* Slide-in animation for mobile sidebar */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-in.slide-in-from-left {
+  animation: slideInLeft 0.2s ease-out;
+}
+
+/* Slide-up animation for install prompt */
+@keyframes slideInBottom {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-in.slide-in-from-bottom {
+  animation: slideInBottom 0.3s ease-out;
 }
