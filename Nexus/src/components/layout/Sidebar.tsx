@@ -13,10 +13,7 @@ export default function Sidebar() {
     const isOwner = pathname.startsWith("/owner");
     const isGuard = pathname.startsWith("/guard");
 
-    // Close mobile sidebar on route change
-    useEffect(() => {
-        setMobileOpen(false);
-    }, [pathname]);
+    const closeMobile = () => setMobileOpen(false);
 
     // Prevent body scroll when mobile sidebar is open
     useEffect(() => {
@@ -55,7 +52,7 @@ export default function Sidebar() {
             <div>
                 {/* Logo & Brand */}
                 <div className="h-16 md:h-20 flex items-center px-5 md:px-6 border-b border-slate-800">
-                    <Link href={isAdmin ? "/admin" : isOwner ? "/owner" : "/guard"} className="flex items-center gap-3 group flex-1">
+                    <Link href={isAdmin ? "/admin" : isOwner ? "/owner" : "/guard"} className="flex items-center gap-3 group flex-1" onClick={closeMobile}>
                         <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center border border-sky-400/30 group-hover:bg-sky-500/30 transition-colors">
                             <Image src="/logo-192.svg" alt="GSS Logo" width={20} height={20} className="w-5 h-5 drop-shadow-[0_0_8px_rgba(14,165,233,0.5)]" />
                         </div>
@@ -77,6 +74,7 @@ export default function Sidebar() {
                             <Link
                                 key={link.href}
                                 href={link.href}
+                                onClick={closeMobile}
                                 className={`flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-lg transition-colors active:scale-[0.97] ${isActive
                                     ? "bg-sky-500/10 text-sky-400 border border-sky-500/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                                     : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"

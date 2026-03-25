@@ -5,8 +5,13 @@ import { X, Share, PlusSquare, Download } from "lucide-react";
 import Image from "next/image";
 
 export default function InstallPrompt() {
-    const [isIOS, setIsIOS] = useState(false);
-    const [isStandalone, setIsStandalone] = useState(() => {
+    // Detect iOS at init (won't change during session)
+    const [isIOS] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+    });
+    // Detect if already installed as PWA
+    const [isStandalone] = useState(() => {
         if (typeof window === "undefined") return false;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
@@ -37,12 +42,7 @@ export default function InstallPrompt() {
             localStorage.removeItem("installPromptDismissed");
         }
 
-        // Detect iOS
-        const userAgent = window.navigator.userAgent.toLowerCase();
-        const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
-        setIsIOS(isIosDevice);
-
-        if (isIosDevice) {
+        if (isIOS) {
             // iOS doesn't support beforeinstallprompt, show custom prompt after a short delay
             const timer = setTimeout(() => setShowPrompt(true), 2000);
             return () => clearTimeout(timer);
@@ -61,7 +61,7 @@ export default function InstallPrompt() {
         return () => {
             window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
         };
-    }, [isStandalone]);
+    }, [isStandalone, isIOS]);
 
     const handleInstallClick = async () => {
         if (!deferredPrompt) return;
