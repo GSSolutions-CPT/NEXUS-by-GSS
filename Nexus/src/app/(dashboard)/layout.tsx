@@ -1,5 +1,6 @@
 import Sidebar from "@/components/layout/Sidebar";
 import NotificationBell from "@/components/layout/NotificationBell";
+import OwnerCallReceiver from "@/components/intercom/OwnerCallReceiver";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     return (
@@ -31,6 +32,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-sky-500/5 rounded-full blur-[120px] pointer-events-none"></div>
 
                     <div className="max-w-6xl mx-auto space-y-4 md:space-y-8 relative z-10">
+                        <OwnerCallReceiver />
                         {children}
                     </div>
                 </div>

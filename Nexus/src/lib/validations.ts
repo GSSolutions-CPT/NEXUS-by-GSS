@@ -41,3 +41,11 @@ export const maintenanceSchema = z.object({
     priority: z.enum(['Low', 'Medium', 'High', 'Urgent']),
     image_url: z.string().url("Invalid image URL").optional().nullable(),
 });
+
+export const announcementSchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters").max(100, "Title is too long"),
+  content: z.string().min(10, "Content must be at least 10 characters").max(2000, "Content is too long"),
+  type: z.enum(['info', 'warning', 'emergency'], {
+    errorMap: () => ({ message: "Invalid announcement type selected" })
+  }),
+});

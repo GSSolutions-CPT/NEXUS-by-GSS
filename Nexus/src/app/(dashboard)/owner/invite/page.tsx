@@ -26,6 +26,11 @@ export default function InviteVisitorPage() {
     const [phone, setPhone] = useState("");
     const [needsParking, setNeedsParking] = useState(false);
 
+    // Contractor / Guest Type
+    const [visitorType, setVisitorType] = useState<"guest" | "contractor">("guest");
+    const [contractorStartDate, setContractorStartDate] = useState("");
+    const [contractorEndDate, setContractorEndDate] = useState("");
+
     // Access Windows — per-day time slots
     const [accessWindows, setAccessWindows] = useState<AccessWindow[]>([
         { date: "", from: "08:00", to: "17:00" }
@@ -57,11 +62,43 @@ export default function InviteVisitorPage() {
         setInviteResult(null);
 
         // Validate access windows
-        const validWindows = accessWindows.filter(w => w.date && w.from && w.to);
-        if (validWindows.length === 0) {
-            setError("Please add at least one access day with valid times.");
-            setLoading(false);
-            return;
+        let validWindows: AccessWindow[] = [];
+
+        if (visitorType === "contractor") {
+            if (!contractorStartDate || !contractorEndDate) {
+                setError("Please select a start and end date for the contractor.");
+                setLoading(false); return;
+            }
+            const start = new Date(contractorStartDate);
+            const end = new Date(contractorEndDate);
+            if (end < start) {
+                setError("End date cannot be before start date.");
+                setLoading(false); return;
+            }
+
+            // Generate Mon-Fri 08:00-17:00
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const day = d.getDay();
+                if (day !== 0 && day !== 6) { // 0=Sun, 6=Sat
+                    validWindows.push({
+                        date: d.toISOString().split("T")[0], // YYYY-MM-DD
+                        from: "08:00",
+                        to: "17:00"
+                    });
+                }
+            }
+
+            if (validWindows.length === 0) {
+                setError("The selected date range contains no valid weekdays (Mon-Fri).");
+                setLoading(false); return;
+            }
+        } else {
+            validWindows = accessWindows.filter(w => w.date && w.from && w.to);
+            if (validWindows.length === 0) {
+                setError("Please add at least one access day with valid times.");
+                setLoading(false);
+                return;
+            }
         }
 
         try {
@@ -103,6 +140,9 @@ export default function InviteVisitorPage() {
             setPhone("");
             setNeedsParking(false);
             setAccessWindows([{ date: "", from: "08:00", to: "17:00" }]);
+            setContractorStartDate("");
+            setContractorEndDate("");
+            setVisitorType("guest");
 
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "An unknown error occurred.");
@@ -286,6 +326,23 @@ export default function InviteVisitorPage() {
                                     </div>
                                 </div>
 
+                                {/* Visitor Type */}
+                                <div className="space-y-3">
+                                    <label className="text-xs font-bold tracking-wide text-slate-400 uppercase">Visitor Category</label>
+                                    <div className="flex gap-4">
+                                        <label className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${visitorType === "guest" ? "border-sky-500 bg-sky-500/10 text-white" : "border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-600 hover:text-slate-300"}`}>
+                                            <input type="radio" name="visitorType" value="guest" checked={visitorType === "guest"} onChange={() => setVisitorType("guest")} className="sr-only" />
+                                            <span className="font-semibold text-sm">Standard Guest</span>
+                                            <span className="text-[10px] text-center opacity-80">Flexible manual hours</span>
+                                        </label>
+                                        <label className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${visitorType === "contractor" ? "border-amber-500 bg-amber-500/10 text-white" : "border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-600 hover:text-slate-300"}`}>
+                                            <input type="radio" name="visitorType" value="contractor" checked={visitorType === "contractor"} onChange={() => setVisitorType("contractor")} className="sr-only" />
+                                            <span className="font-semibold text-sm">Contractor</span>
+                                            <span className="text-[10px] text-center opacity-80">Strict Mon-Fri, 8AM-5PM</span>
+                                        </label>
+                                    </div>
+                                </div>
+
                                 {/* Phone */}
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold tracking-wide text-slate-400 uppercase">Mobile Number (For SMS Link)</label>
@@ -296,69 +353,93 @@ export default function InviteVisitorPage() {
                                     </div>
                                 </div>
 
-                                {/* ── Access Windows (Per-Day Time Slots) ── */}
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <label className="text-xs font-bold tracking-wide text-slate-400 uppercase flex items-center gap-2">
+                                {/* ── Access Windows (Per-Day Time Slots or Contractor Auto) ── */}
+                                {visitorType === "guest" ? (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs font-bold tracking-wide text-slate-400 uppercase flex items-center gap-2">
+                                                <CalendarPlus className="w-3.5 h-3.5" />
+                                                Access Schedule
+                                            </label>
+                                            <button type="button" onClick={addWindow}
+                                                className="flex items-center gap-1.5 text-xs font-medium text-sky-400 hover:text-sky-300 transition-colors">
+                                                <Plus className="w-3.5 h-3.5" />
+                                                Add Day
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            {accessWindows.map((window, index) => (
+                                                <div key={index} className="flex items-center gap-2 p-3 bg-slate-900/40 border border-slate-700/50 rounded-xl">
+                                                    {/* Date */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">Date</label>
+                                                        <input type="date" value={window.date}
+                                                            onChange={e => updateWindow(index, "date", e.target.value)}
+                                                            required
+                                                            className="w-full h-9 px-2.5 rounded-lg bg-slate-950/50 border border-slate-700 text-white text-sm [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
+                                                    </div>
+
+                                                    {/* From Time */}
+                                                    <div className="w-[100px] flex-shrink-0">
+                                                        <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1 flex items-center gap-1">
+                                                            <Clock className="w-2.5 h-2.5" /> From
+                                                        </label>
+                                                        <input type="time" value={window.from}
+                                                            onChange={e => updateWindow(index, "from", e.target.value)}
+                                                            required
+                                                            className="w-full h-9 px-2.5 rounded-lg bg-slate-950/50 border border-slate-700 text-white text-sm [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
+                                                    </div>
+
+                                                    {/* To Time */}
+                                                    <div className="w-[100px] flex-shrink-0">
+                                                        <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1 flex items-center gap-1">
+                                                            <Clock className="w-2.5 h-2.5" /> To
+                                                        </label>
+                                                        <input type="time" value={window.to}
+                                                            onChange={e => updateWindow(index, "to", e.target.value)}
+                                                            required
+                                                            className="w-full h-9 px-2.5 rounded-lg bg-slate-950/50 border border-slate-700 text-white text-sm [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
+                                                    </div>
+
+                                                    {/* Remove */}
+                                                    {accessWindows.length > 1 && (
+                                                        <button type="button" onClick={() => removeWindow(index)}
+                                                            className="mt-4 p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors flex-shrink-0">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <p className="text-[11px] text-slate-500">
+                                            Define which days and times the guest can enter the building. Each day can have different hours.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                                        <label className="text-xs font-bold tracking-wide text-amber-500/80 uppercase flex items-center gap-2">
                                             <CalendarPlus className="w-3.5 h-3.5" />
-                                            Access Schedule
+                                            Contractor Project Duration
                                         </label>
-                                        <button type="button" onClick={addWindow}
-                                            className="flex items-center gap-1.5 text-xs font-medium text-sky-400 hover:text-sky-300 transition-colors">
-                                            <Plus className="w-3.5 h-3.5" />
-                                            Add Day
-                                        </button>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        {accessWindows.map((window, index) => (
-                                            <div key={index} className="flex items-center gap-2 p-3 bg-slate-900/40 border border-slate-700/50 rounded-xl">
-                                                {/* Date */}
-                                                <div className="flex-1 min-w-0">
-                                                    <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">Date</label>
-                                                    <input type="date" value={window.date}
-                                                        onChange={e => updateWindow(index, "date", e.target.value)}
-                                                        required
-                                                        className="w-full h-9 px-2.5 rounded-lg bg-slate-950/50 border border-slate-700 text-white text-sm [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
-                                                </div>
-
-                                                {/* From Time */}
-                                                <div className="w-[100px] flex-shrink-0">
-                                                    <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1 flex items-center gap-1">
-                                                        <Clock className="w-2.5 h-2.5" /> From
-                                                    </label>
-                                                    <input type="time" value={window.from}
-                                                        onChange={e => updateWindow(index, "from", e.target.value)}
-                                                        required
-                                                        className="w-full h-9 px-2.5 rounded-lg bg-slate-950/50 border border-slate-700 text-white text-sm [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
-                                                </div>
-
-                                                {/* To Time */}
-                                                <div className="w-[100px] flex-shrink-0">
-                                                    <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1 flex items-center gap-1">
-                                                        <Clock className="w-2.5 h-2.5" /> To
-                                                    </label>
-                                                    <input type="time" value={window.to}
-                                                        onChange={e => updateWindow(index, "to", e.target.value)}
-                                                        required
-                                                        className="w-full h-9 px-2.5 rounded-lg bg-slate-950/50 border border-slate-700 text-white text-sm [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
-                                                </div>
-
-                                                {/* Remove */}
-                                                {accessWindows.length > 1 && (
-                                                    <button type="button" onClick={() => removeWindow(index)}
-                                                        className="mt-4 p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors flex-shrink-0">
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                )}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">Start Date</label>
+                                                <input type="date" value={contractorStartDate} onChange={e => setContractorStartDate(e.target.value)} required
+                                                    className="w-full h-10 px-3 rounded-lg bg-slate-950/50 border border-slate-700 text-white text-sm [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
                                             </div>
-                                        ))}
+                                            <div>
+                                                <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">End Date</label>
+                                                <input type="date" value={contractorEndDate} onChange={e => setContractorEndDate(e.target.value)} required
+                                                    className="w-full h-10 px-3 rounded-lg bg-slate-950/50 border border-slate-700 text-white text-sm [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
+                                            </div>
+                                        </div>
+                                        <p className="text-[11px] text-slate-500">
+                                            Access will be automatically granted only between <b>08:00 and 17:00</b> on **weekdays (Mon-Fri)** within this date range. Building security will deny access on weekends or after-hours.
+                                        </p>
                                     </div>
-
-                                    <p className="text-[11px] text-slate-500">
-                                        Define which days and times the guest can enter the building. Each day can have different hours.
-                                    </p>
-                                </div>
+                                )}
 
                                 {/* Parking */}
                                 <div className="flex items-center gap-3 p-4 rounded-lg bg-slate-900/50 border border-slate-700/50 cursor-pointer hover:bg-slate-800/80 transition-colors">

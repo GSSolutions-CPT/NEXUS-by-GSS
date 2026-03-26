@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/utils/supabase/client";
+import { Megaphone, AlertTriangle, Info, BellRing } from "lucide-react";
 
 interface OwnerStats {
     activeToday: number;
@@ -27,6 +28,7 @@ export default function OwnerDashboardPage() {
         unitName: "", ownerName: "",
     });
     const [recentLogs, setRecentLogs] = useState<RecentLog[]>([]);
+    const [announcements, setAnnouncements] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const supabase = useMemo(() => createClient(), []);
 
@@ -64,7 +66,7 @@ export default function OwnerDashboardPage() {
             ? supabase.from("visitors").select("id", { count: "exact", head: true }).eq("unit_id", unitId)
             : null;
 
-        const [activeRes, scheduledRes, totalRes, logsRes] = await Promise.all([
+        const [activeRes, scheduledRes, totalRes, logsRes, announcementsRes] = await Promise.all([
             mkQuery()?.lte("start_time", todayEnd.toISOString()).gte("expiry_time", todayStart.toISOString()).neq("status", "Revoked"),
             mkQuery()?.gte("start_time", tomorrowStart.toISOString()).lte("start_time", tomorrowEnd.toISOString()).neq("status", "Revoked"),
             mkQuery(),
@@ -72,6 +74,7 @@ export default function OwnerDashboardPage() {
                 ? supabase.from("audit_logs").select("id, event_type, actor_name, details, created_at")
                     .eq("unit_id", unitId).order("created_at", { ascending: false }).limit(5)
                 : Promise.resolve({ data: [] }),
+            supabase.from("announcements").select("*, profiles(first_name, last_name)").order("created_at", { ascending: false }).limit(5)
         ]);
 
         setStats({
@@ -83,6 +86,7 @@ export default function OwnerDashboardPage() {
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setRecentLogs((logsRes as any)?.data || []);
+        setAnnouncements(announcementsRes.data || []);
         setLoading(false);
     }, [supabase]);
 
@@ -92,8 +96,29 @@ export default function OwnerDashboardPage() {
 
     const fmt = (d: string) => new Date(d).toLocaleString("en-ZA", { dateStyle: "short", timeStyle: "short" });
 
+    const activeEmergencies = useMemo(() => {
+        return announcements.filter(a => a.type === "emergency" && new Date(a.created_at).getTime() > Date.now() - 48 * 60 * 60 * 1000);
+    }, [announcements]);
+
     return (
         <div className="space-y-6">
+
+            {/* Emergency Banners */}
+            {activeEmergencies.length > 0 && (
+                <div className="space-y-3">
+                    {activeEmergencies.map(em => (
+                        <div key={em.id} className="p-4 md:p-6 bg-rose-500/10 border-2 border-rose-500/50 rounded-2xl flex items-start sm:items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-500 shadow-[0_0_30px_rgba(244,63,94,0.15)]">
+                            <div className="p-3 bg-rose-500/20 rounded-xl">
+                                <AlertTriangle className="w-8 h-8 md:w-10 md:h-10 text-rose-500 animate-pulse" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-xl md:text-2xl font-black text-rose-500 uppercase tracking-tight mb-1">{em.title}</h3>
+                                <p className="text-rose-200/90 font-medium text-sm md:text-base leading-relaxed">{em.content}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -141,8 +166,45 @@ export default function OwnerDashboardPage() {
             {/* Main Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                {/* Activity Feed */}
-                <div className="lg:col-span-2">
+                {/* Activity Feed & Notice Board */}
+                <div className="lg:col-span-2 space-y-6">
+
+                    {/* Notice Board */}
+                    <div className="p-6 rounded-2xl bg-slate-800/30 border border-slate-700/50">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 rounded-xl bg-sky-500/20 flex items-center justify-center">
+                                <BellRing className="w-5 h-5 text-sky-400" />
+                            </div>
+                            <h3 className="text-xl font-bold text-white">Notice Board</h3>
+                        </div>
+
+                        {loading ? (
+                            <div className="space-y-3">
+                                {[1, 2].map(i => <div key={i} className="h-20 bg-slate-800/40 rounded-xl animate-pulse" />)}
+                            </div>
+                        ) : announcements.length === 0 ? (
+                            <div className="text-center py-6">
+                                <p className="text-slate-500 text-sm">No recent announcements.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {announcements.map(ann => (
+                                    <div key={ann.id} className={`p-4 rounded-xl border ${ann.type === 'emergency' ? 'bg-rose-500/10 border-rose-500/30' : ann.type === 'warning' ? 'bg-amber-500/10 border-amber-500/30' : 'bg-slate-800/50 border-slate-700'}`}>
+                                        <div className="flex items-start gap-3">
+                                            {ann.type === 'emergency' ? <AlertTriangle className="w-5 h-5 text-rose-500 flex-shrink-0 mt-0.5" /> : ann.type === 'warning' ? <Megaphone className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" /> : <Info className="w-5 h-5 text-sky-400 flex-shrink-0 mt-0.5" />}
+                                            <div>
+                                                <h4 className={`font-bold ${ann.type === 'emergency' ? 'text-rose-400' : 'text-white'}`}>{ann.title}</h4>
+                                                <p className="text-sm text-slate-300 mt-1">{ann.content}</p>
+                                                <p className="text-xs text-slate-500 mt-2">{fmt(ann.created_at)} • From {ann.profiles?.first_name} {ann.profiles?.last_name}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Recent Activity */}
                     <div className="p-6 rounded-2xl bg-slate-800/30 border border-slate-700/50">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xl font-bold text-white">Your Unit&apos;s Recent Activity</h3>

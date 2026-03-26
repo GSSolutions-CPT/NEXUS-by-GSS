@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Phone } from "lucide-react";
+import GuardCaller from "@/components/intercom/GuardCaller";
 
 interface ExpectedVisitor {
     id: string;
@@ -31,6 +32,7 @@ export default function GuardDashboardPage() {
     const [visitors, setVisitors] = useState<ExpectedVisitor[]>([]);
     const [directory, setDirectory] = useState<DirectoryEntry[]>([]);
     const [dirSearch, setDirSearch] = useState("");
+    const [activeCall, setActiveCall] = useState<DirectoryEntry | null>(null);
     const [loading, setLoading] = useState(true);
     const supabase = createClient();
 
@@ -99,6 +101,13 @@ export default function GuardDashboardPage() {
 
     return (
         <div className="space-y-6">
+
+            {activeCall && (
+                <GuardCaller 
+                    targetUser={activeCall} 
+                    onClose={() => setActiveCall(null)} 
+                />
+            )}
 
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -226,10 +235,21 @@ export default function GuardDashboardPage() {
                                 filteredDirectory.map(d => (
                                     <div key={d.id} className="p-3 bg-slate-800/80 border border-slate-700 rounded-xl hover:bg-slate-800 transition-colors">
                                         <div className="flex justify-between items-start mb-1">
-                                            <span className="font-bold text-white text-sm">{d.unit_name || "No Unit"}</span>
-                                            <span className="text-xs font-semibold bg-slate-700 text-slate-300 px-2 py-0.5 rounded">Owner</span>
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-bold text-white text-sm">{d.unit_name || "No Unit"}</span>
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300 px-2 py-0.5 rounded">Owner</span>
+                                                </div>
+                                                <p className="text-sm text-slate-400">{d.first_name} {d.last_name}</p>
+                                            </div>
+                                            <button 
+                                                onClick={() => setActiveCall(d)}
+                                                className="w-10 h-10 rounded-xl bg-sky-500/10 hover:bg-sky-500 text-sky-400 hover:text-white border border-sky-500/30 flex items-center justify-center transition-all shadow-[0_0_10px_rgba(14,165,233,0.1)] hover:shadow-[0_0_15px_rgba(14,165,233,0.3)] active:scale-95 flex-shrink-0"
+                                                title="Call Tenant"
+                                            >
+                                                <Phone className="w-5 h-5 fill-current" />
+                                            </button>
                                         </div>
-                                        <p className="text-sm text-slate-400">{d.first_name} {d.last_name}</p>
                                     </div>
                                 ))
                             )}
