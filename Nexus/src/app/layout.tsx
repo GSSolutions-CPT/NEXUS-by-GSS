@@ -15,8 +15,8 @@ export const metadata: Metadata = {
   description: "Visitor Management Portal secured by Global Security Solutions",
   manifest: "/manifest.json",
   icons: {
-    icon: "/logo-192.svg",
-    apple: "/logo-192.svg"
+    icon: "/logo-192.png",
+    apple: "/logo-192.png"
   },
   other: {
     "apple-mobile-web-app-capable": "yes",
