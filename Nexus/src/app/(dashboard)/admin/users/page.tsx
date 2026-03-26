@@ -320,7 +320,7 @@ export default function UserManagementPage() {
                         ) : (
                             /* Form */
                             <form onSubmit={handleInvite} className="p-5 space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-medium text-slate-400 mb-1">First Name <span className="text-rose-500">*</span></label>
                                         <input type="text" required value={firstName} onChange={e => setFirstName(e.target.value)}

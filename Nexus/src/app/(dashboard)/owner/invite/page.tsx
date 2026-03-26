@@ -423,7 +423,7 @@ export default function InviteVisitorPage() {
                                             <CalendarPlus className="w-3.5 h-3.5" />
                                             Contractor Project Duration
                                         </label>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">Start Date</label>
                                                 <input type="date" value={contractorStartDate} onChange={e => setContractorStartDate(e.target.value)} required
