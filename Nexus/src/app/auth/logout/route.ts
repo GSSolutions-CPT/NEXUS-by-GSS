@@ -11,13 +11,10 @@ export async function POST(request: Request) {
     const origin = request.headers.get("origin");
 
     if (origin && origin !== "null") {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || "";
-        // Only enforce CSRF if we have a site URL configured
-        if (siteUrl) {
-            const normalizedSite = siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`;
-            const siteHost = new URL(normalizedSite).hostname;
-            const originHost = new URL(origin).hostname;
-            if (siteHost !== originHost) {
+        const host = request.headers.get("host"); // The hostname the user is currently visiting
+        if (host) {
+            const originHost = new URL(origin).host; // .host includes port if present, matching the Host header format
+            if (host !== originHost) {
                 return NextResponse.json({ error: "Forbidden" }, { status: 403 });
             }
         }
