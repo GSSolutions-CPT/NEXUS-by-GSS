@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-v1';
+// Nexus Service Worker
 
 self.addEventListener('install', () => {
   self.skipWaiting();
