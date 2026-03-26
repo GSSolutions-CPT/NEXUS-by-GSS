@@ -1,16 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Megaphone, AlertTriangle, Info, Plus, ChevronDown, CheckCircle, BellRing } from "lucide-react";
 import { announcementSchema } from "@/lib/validations";
 
 type AnnouncementType = "info" | "warning" | "emergency";
 
+interface Announcement {
+    id: string;
+    title: string;
+    content: string;
+    type: AnnouncementType;
+    created_at: string;
+    profiles?: { first_name: string; last_name: string; } | null;
+}
+
 export default function AdminAnnouncementsPage() {
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
     
-    const [announcements, setAnnouncements] = useState<any[]>([]);
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(true);
     
     const [isCreating, setIsCreating] = useState(false);
@@ -22,11 +31,7 @@ export default function AdminAnnouncementsPage() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
-    useEffect(() => {
-        fetchAnnouncements();
-    }, []);
-
-    const fetchAnnouncements = async () => {
+    const fetchAnnouncements = useCallback(async () => {
         setLoading(true);
         const { data } = await supabase
             .from("announcements")
@@ -35,7 +40,11 @@ export default function AdminAnnouncementsPage() {
         
         if (data) setAnnouncements(data);
         setLoading(false);
-    };
+    }, [supabase]);
+
+    useEffect(() => {
+        fetchAnnouncements();
+    }, [fetchAnnouncements]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -46,7 +55,7 @@ export default function AdminAnnouncementsPage() {
         try {
             const parseResult = announcementSchema.safeParse({ title, content, type });
             if (!parseResult.success) {
-                throw new Error(parseResult.error.errors[0]?.message || "Invalid input data");
+                throw new Error(parseResult.error.issues[0]?.message || "Invalid input data");
             }
 
             const { data: { user } } = await supabase.auth.getUser();
@@ -71,8 +80,9 @@ export default function AdminAnnouncementsPage() {
             fetchAnnouncements();
             
             setTimeout(() => setSuccess(false), 3000);
-        } catch (err: any) {
-            setError(err.message || "Failed to post announcement");
+        } catch (err) {
+            const errorObj = err as Error;
+            setError(errorObj.message || "Failed to post announcement");
         } finally {
             setSubmitLoading(false);
         }

@@ -22,13 +22,21 @@ interface RecentLog {
     created_at: string;
 }
 
+interface Announcement {
+    id: string;
+    title: string;
+    content: string;
+    type: string;
+    created_at: string;
+}
+
 export default function OwnerDashboardPage() {
     const [stats, setStats] = useState<OwnerStats>({
         activeToday: 0, scheduledTomorrow: 0, totalVisitors: 0,
         unitName: "", ownerName: "",
     });
     const [recentLogs, setRecentLogs] = useState<RecentLog[]>([]);
-    const [announcements, setAnnouncements] = useState<any[]>([]);
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(true);
     const supabase = useMemo(() => createClient(), []);
 
@@ -96,9 +104,15 @@ export default function OwnerDashboardPage() {
 
     const fmt = (d: string) => new Date(d).toLocaleString("en-ZA", { dateStyle: "short", timeStyle: "short" });
 
+    const [currentTime, setCurrentTime] = useState(() => Date.now());
+    useEffect(() => {
+        const interval = setInterval(() => setCurrentTime(Date.now()), 60000);
+        return () => clearInterval(interval);
+    }, []);
+
     const activeEmergencies = useMemo(() => {
-        return announcements.filter(a => a.type === "emergency" && new Date(a.created_at).getTime() > Date.now() - 48 * 60 * 60 * 1000);
-    }, [announcements]);
+        return announcements.filter(a => a.type === "emergency" && new Date(a.created_at).getTime() > currentTime - 48 * 60 * 60 * 1000);
+    }, [announcements, currentTime]);
 
     return (
         <div className="space-y-6">

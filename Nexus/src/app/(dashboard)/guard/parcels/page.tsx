@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Package, Plus, QrCode, Search, CheckCircle2, Loader2, User, Clock, ArrowRight } from "lucide-react";
+import { Package, Plus, QrCode, CheckCircle2, Loader2, User, Clock } from "lucide-react";
 import QRScanner from "@/components/QRScanner";
 import { createClient } from "@/utils/supabase/client";
 
@@ -127,9 +127,10 @@ export default function GuardParcelsPage() {
             alert("Parcel successfully released to tenant!");
             fetchParcels();
             
-        } catch (error: any) {
-            console.error(error);
-            alert(`QR Validation Failed: ${error.message}`);
+        } catch (error) {
+            const err = error as Error;
+            console.error(err);
+            alert(`QR Validation Failed: ${err.message}`);
         } finally {
             setIsProcessingQR(false);
         }
