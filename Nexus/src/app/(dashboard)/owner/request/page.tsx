@@ -14,6 +14,7 @@ export default function RequestCredentialPage() {
     const [role, setRole] = useState("");
     const [phone, setPhone] = useState("");
     const [email, setEmail] = useState("");
+    const [notes, setNotes] = useState("");
     const [activeTab, setActiveTab] = useState<"single" | "bulk">("single");
     const fileInputRef = useRef<HTMLInputElement>(null);
 

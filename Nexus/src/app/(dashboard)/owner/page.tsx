@@ -28,6 +28,7 @@ interface Announcement {
     content: string;
     type: string;
     created_at: string;
+    profiles?: { first_name: string; last_name: string } | null;
 }
 
 export default function OwnerDashboardPage() {
