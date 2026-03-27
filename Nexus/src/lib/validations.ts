@@ -22,7 +22,7 @@ export const userSchema = z.object({
     email: z.string().email("Invalid email format"),
     firstName: z.string().min(1, "First name is required").max(100),
     lastName: z.string().min(1, "Last name is required").max(100),
-    role: z.enum(["Owner", "Guard", "SuperAdmin"]),
+    role: z.enum(["GroupAdmin", "Guard", "SuperAdmin"]),
     unitId: z.string().uuid("Invalid Unit ID").optional().or(z.literal("")).nullable(),
 });
 
