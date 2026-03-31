@@ -176,7 +176,7 @@ export async function POST(request: Request) {
         const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
             type: "recovery",
             email,
-            options: { redirectTo: `${siteUrl}/` },
+            options: { redirectTo: `${siteUrl}/auth/reset-password` },
         });
 
         if (linkErr || !linkData?.properties?.action_link) {
