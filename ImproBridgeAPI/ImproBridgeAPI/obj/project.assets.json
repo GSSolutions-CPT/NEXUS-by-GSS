@@ -3240,11 +3240,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\User\\OneDrive\\Desktop\\V5API\\ImproBridgeAPI\\ImproBridgeAPI\\ImproBridgeAPI.csproj",
+      "projectUniqueName": "C:\\Users\\User\\OneDrive\\Desktop\\Website\\V5API\\ImproBridgeAPI\\ImproBridgeAPI\\ImproBridgeAPI.csproj",
       "projectName": "ImproBridgeAPI",
-      "projectPath": "C:\\Users\\User\\OneDrive\\Desktop\\V5API\\ImproBridgeAPI\\ImproBridgeAPI\\ImproBridgeAPI.csproj",
+      "projectPath": "C:\\Users\\User\\OneDrive\\Desktop\\Website\\V5API\\ImproBridgeAPI\\ImproBridgeAPI\\ImproBridgeAPI.csproj",
       "packagesPath": "C:\\Users\\User\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\User\\OneDrive\\Desktop\\V5API\\ImproBridgeAPI\\ImproBridgeAPI\\obj\\",
+      "outputPath": "C:\\Users\\User\\OneDrive\\Desktop\\Website\\V5API\\ImproBridgeAPI\\ImproBridgeAPI\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\User\\AppData\\Roaming\\NuGet\\NuGet.Config"
