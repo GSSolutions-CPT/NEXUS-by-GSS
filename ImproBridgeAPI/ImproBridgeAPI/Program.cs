@@ -65,4 +65,34 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+// Health check endpoint for the admin dashboard bridge-health probe
+app.MapGet("/health", () => Results.Ok(new { status = "online", timestamp = DateTime.UtcNow }));
+
+// Deep health check that actually tests the Impro Portal SDK connection
+app.MapGet("/health/impro", (IServiceProvider sp) =>
+{
+    try
+    {
+        using var scope = sp.CreateScope();
+        var improService = scope.ServiceProvider.GetRequiredService<IImproCommandService>();
+        var token = improService.Authenticate("", "");
+        var isConnected = !string.IsNullOrEmpty(token);
+        return Results.Ok(new
+        {
+            status = isConnected ? "connected" : "disconnected",
+            portalServer = "127.0.0.1:10010",
+            timestamp = DateTime.UtcNow
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok(new
+        {
+            status = "error",
+            message = ex.Message,
+            timestamp = DateTime.UtcNow
+        });
+    }
+});
+
 app.Run();
