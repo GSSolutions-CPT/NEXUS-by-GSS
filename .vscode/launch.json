@@ -6,6 +6,22 @@
     "configurations": [
         
         {
+            "name": ".NET Core Launch (API)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/ImproBridgeAPI/ImproBridgeAPI/bin/Debug/net8.0/ImproBridgeAPI.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/ImproBridgeAPI/ImproBridgeAPI",
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            }
+        },
+        {
             "command": "npm start",
             "name": "Run npm start",
             "request": "launch",
