@@ -21,7 +21,7 @@ const ROLE_HOME: Record<string, string> = {
     Guard: '/guard',
 }
 
-export async function proxy(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl
 
     // API routes and static assets handle their own auth
