@@ -136,7 +136,7 @@ export async function POST(request: Request) {
             email,
             password: tempPassword,
             email_confirm: true,
-            user_metadata: { first_name: firstName, last_name: lastName }
+            user_metadata: { first_name: firstName, last_name: lastName, role: role }
         });
 
         if (createErr || !newUser.user) {
