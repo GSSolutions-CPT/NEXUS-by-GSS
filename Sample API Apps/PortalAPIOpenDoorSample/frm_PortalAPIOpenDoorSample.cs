@@ -1,4 +1,4 @@
-﻿using Portal.Api;
+using Portal.Api;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,7 +37,7 @@ namespace PortalAPIOpenDoorSample
                 AppendTextBox("Getting all devices...");
 
                 baseDomain[] getAllDeviceNamesSearch = portalApi.findByHsql("from DeviceImprox", 1000);
-                for (int i = 0; i < getAllDeviceNamesSearch.Count(); i++)
+                for (int i = 0; i < getAllDeviceNamesSearch.Length; i++)
                 {
                     //only add if it is a terminal type
                     if (getAllDeviceNamesSearch[i].GetType() == typeof(terminal))

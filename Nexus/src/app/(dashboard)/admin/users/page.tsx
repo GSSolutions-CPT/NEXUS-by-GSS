@@ -324,7 +324,7 @@ export default function UserManagementPage() {
                                 )}
                                 {isEditMode ? "Edit User Profile" : "Invite New User"}
                             </h2>
-                            <button onClick={resetModal} className="text-slate-400 hover:text-white transition-colors">
+                            <button onClick={resetModal} className="text-slate-400 hover:text-white transition-colors" title="Close Modal">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>

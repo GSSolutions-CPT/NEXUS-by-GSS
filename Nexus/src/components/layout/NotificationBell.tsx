@@ -169,7 +169,9 @@ export default function NotificationBell() {
                                     </div>
                                     {!n.read && (
                                         <button onClick={(e) => { e.stopPropagation(); markAsRead(n.id); }}
-                                            className="text-slate-600 hover:text-slate-400 transition-colors flex-shrink-0 mt-0.5">
+                                            className="text-slate-600 hover:text-slate-400 transition-colors flex-shrink-0 mt-0.5 shadow-sm"
+                                            title="Mark as Read"
+                                        >
                                             <X className="w-3.5 h-3.5" />
                                         </button>
                                     )}
