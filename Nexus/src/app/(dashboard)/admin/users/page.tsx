@@ -220,7 +220,7 @@ export default function UserManagementPage() {
                                     <th className="p-4">System Role</th>
                                     <th className="p-4">Assigned Unit</th>
                                     <th className="p-4">Status</th>
-                                    <th className="p-4 text-right pr-6">Actions</th>
+                                    <th className="p-4 text-right pr-6">&nbsp;</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-700/50">
@@ -259,7 +259,11 @@ export default function UserManagementPage() {
                                                     <span className="text-xs font-medium text-slate-300">{hasSignedIn ? "Active" : "Pending"}</span>
                                                 </div>
                                             </td>
-                                            <td className="p-4 text-right pr-6">
+                                            <td className="p-4 text-right pr-6 whitespace-nowrap">
+                                                <button onClick={() => alert("Edit user functionality not implemented yet.")}
+                                                    className="text-slate-400 hover:text-sky-400 transition-colors p-2 mr-1" title="Edit user">
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                </button>
                                                 <button onClick={() => handleDelete(u.id, `${u.first_name} ${u.last_name}`)}
                                                     className="text-slate-400 hover:text-red-400 transition-colors p-2" title="Delete user">
                                                     <Trash2 className="w-4 h-4" />

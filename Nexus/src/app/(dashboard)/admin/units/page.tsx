@@ -241,12 +241,34 @@ export default function UnitsManagementPage() {
                                                         <span className="text-sm text-slate-300">{unit.owner.first_name} {unit.owner.last_name}</span>
                                                     </div>
                                                 ) : (
+                                {filteredUnits.map((unit) => (
+                                    <tr key={unit.id} className="hover:bg-slate-800/30 transition-colors group">
+                                        <td className="p-4 pl-6">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex flex-col items-center justify-center flex-shrink-0 group-hover:border-sky-500/30 transition-colors">
+                                                    <span className="text-xs text-slate-500 font-medium">UNIT</span>
+                                                    <span className="font-bold text-white text-sm leading-none mt-0.5">{unit.name}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="px-2.5 py-1 text-xs font-semibold text-slate-300 bg-slate-800 border border-slate-700 rounded-full">
+                                                {unit.type}
+                                            </span>
+                                        </td>
+                                            <td className="p-4">
+                                                {unit.owner ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-medium text-slate-300">{ownerInitials}</div>
+                                                        <span className="text-sm text-slate-300">{unit.owner.first_name} {unit.owner.last_name}</span>
+                                                    </div>
+                                                ) : (
                                                     <span className="text-xs text-slate-500 italic">No owner assigned</span>
                                                 )}
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex flex-wrap gap-2">
-                                                    {unit.access_groups.length > 0 ? (
+                                                    {unit.access_groups && unit.access_groups.length > 0 ? (
                                                         unit.access_groups.map((g) => (
                                                             <span key={g.id} className="px-2 py-1 text-[10px] font-semibold bg-sky-500/10 border border-sky-500/30 rounded text-sky-400">
                                                                 {g.name}
@@ -257,7 +279,14 @@ export default function UnitsManagementPage() {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="p-4 text-right pr-6">
+                                            <td className="p-4 text-right pr-6 whitespace-nowrap">
+                                                <button
+                                                    onClick={() => alert("Edit unit functionality not implemented yet.")}
+                                                    className="text-slate-400 hover:text-sky-400 transition-colors p-2 mr-1"
+                                                    title="Edit unit"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                </button>
                                                 <button
                                                     onClick={() => handleDeleteUnit(unit.id, unit.name)}
                                                     className="text-slate-400 hover:text-red-400 transition-colors p-2"
@@ -266,9 +295,8 @@ export default function UnitsManagementPage() {
                                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                                 </button>
                                             </td>
-                                        </tr>
-                                    );
-                                })}
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     </div>
