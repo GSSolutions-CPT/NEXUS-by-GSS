@@ -213,9 +213,6 @@ export default function UnitsManagementPage() {
                             </thead>
                             <tbody className="divide-y divide-slate-700/50">
                                 {filteredUnits.map((unit) => {
-                                    const isBusiness = unit.type === "Business";
-                                    const initials = isBusiness ? "B" : "R";
-                                    const idx = filteredUnits.indexOf(unit) + 1;
                                     const ownerInitials = unit.owner
                                         ? `${unit.owner.first_name?.[0] || ""}${unit.owner.last_name?.[0] || ""}`
                                         : null;
@@ -224,38 +221,23 @@ export default function UnitsManagementPage() {
                                         <tr key={unit.id} className="hover:bg-slate-800/30 transition-colors group">
                                             <td className="p-4 pl-6">
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-8 h-8 rounded flex items-center justify-center font-bold border text-xs ${isBusiness ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"}`}>
-                                                        {initials}{idx}
+                                                    <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex flex-col items-center justify-center flex-shrink-0 group-hover:border-sky-500/30 transition-colors">
+                                                        <span className="text-xs text-slate-500 font-medium">UNIT</span>
+                                                        <span className="font-bold text-white text-sm leading-none mt-0.5">{unit.name}</span>
                                                     </div>
-                                                    <div>
-                                                        <p className="font-semibold text-white">{unit.name}</p>
-                                                        {unit.floor && <p className="text-xs text-slate-500">{unit.floor}</p>}
-                                                    </div>
+                                                    {unit.floor && (
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs text-slate-500 font-medium">FLOOR</span>
+                                                            <span className="text-sm text-slate-300">{unit.floor}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </td>
-                                            <td className="p-4 text-sm text-slate-300">{unit.type}</td>
                                             <td className="p-4">
-                                                {unit.owner ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-medium text-slate-300">{ownerInitials}</div>
-                                                        <span className="text-sm text-slate-300">{unit.owner.first_name} {unit.owner.last_name}</span>
-                                                    </div>
-                                                ) : (
-                                {filteredUnits.map((unit) => (
-                                    <tr key={unit.id} className="hover:bg-slate-800/30 transition-colors group">
-                                        <td className="p-4 pl-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex flex-col items-center justify-center flex-shrink-0 group-hover:border-sky-500/30 transition-colors">
-                                                    <span className="text-xs text-slate-500 font-medium">UNIT</span>
-                                                    <span className="font-bold text-white text-sm leading-none mt-0.5">{unit.name}</span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="p-4">
-                                            <span className="px-2.5 py-1 text-xs font-semibold text-slate-300 bg-slate-800 border border-slate-700 rounded-full">
-                                                {unit.type}
-                                            </span>
-                                        </td>
+                                                <span className="px-2.5 py-1 text-xs font-semibold text-slate-300 bg-slate-800 border border-slate-700 rounded-full">
+                                                    {unit.type}
+                                                </span>
+                                            </td>
                                             <td className="p-4">
                                                 {unit.owner ? (
                                                     <div className="flex items-center gap-2">
@@ -295,8 +277,9 @@ export default function UnitsManagementPage() {
                                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                                 </button>
                                             </td>
-                                    </tr>
-                                ))}
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
