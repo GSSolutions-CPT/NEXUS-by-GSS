@@ -181,3 +181,58 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
+
+// PATCH /api/admin/units — Update an existing unit
+export async function PATCH(request: Request) {
+    try {
+        const supabase = await createClient();
+        const { data: { user }, error: authErr } = await supabase.auth.getUser();
+        if (authErr || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+        if (profile?.role !== 'SuperAdmin') return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+        const body = await request.json();
+        const { id, name, type, floor, accessGroupIds } = body;
+
+        if (!id || !name || !type) {
+            return NextResponse.json({ error: "ID, Name and Type are required." }, { status: 400 });
+        }
+
+        // 1. Update the unit record
+        const { error: updateErr } = await supabase
+            .from("units")
+            .update({ name, type, floor })
+            .eq("id", id);
+
+        if (updateErr) throw updateErr;
+
+        // 2. Sync access group mappings
+        // First delete all existing mappings for this unit
+        const { error: deleteMappingsErr } = await supabase
+            .from("unit_access_mapping")
+            .delete()
+            .eq("unit_id", id);
+
+        if (deleteMappingsErr) throw deleteMappingsErr;
+
+        // Then insert new mappings if any
+        if (accessGroupIds && accessGroupIds.length > 0) {
+            const newMappings = accessGroupIds.map((groupId: number) => ({
+                unit_id: id,
+                access_group_id: groupId,
+            }));
+
+            const { error: insertMappingsErr } = await supabase
+                .from("unit_access_mapping")
+                .insert(newMappings);
+
+            if (insertMappingsErr) throw insertMappingsErr;
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (err) {
+        console.error("Critical error in PATCH /api/admin/units:", err);
+        return NextResponse.json({ error: "Failed to update unit." }, { status: 500 });
+    }
+}

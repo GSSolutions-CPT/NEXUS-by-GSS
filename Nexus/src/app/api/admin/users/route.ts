@@ -262,3 +262,53 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
+
+// PATCH /api/admin/users — Update an existing user
+export async function PATCH(request: Request) {
+    try {
+        const supabase = await createServerClient();
+        const { data: { user }, error: authErr } = await supabase.auth.getUser();
+        if (authErr || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+        const { data: adminProfile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+        if (adminProfile?.role !== 'SuperAdmin') return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+        const body = await request.json();
+        const { id, firstName, lastName, role, unitId } = body;
+
+        if (!id) return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey!, {
+            auth: { autoRefreshToken: false, persistSession: false }
+        });
+
+        // 1. Update Profile (Names, Role, Unit)
+        console.log(`[Admin User Update] ID: ${id} | Role: ${role} | Unit: ${unitId}`);
+        const { error: profileErr } = await supabaseAdmin
+            .from("profiles")
+            .update({
+                first_name: firstName,
+                last_name: lastName,
+                role,
+                unit_id: unitId || null
+            })
+            .eq("id", id);
+
+        if (profileErr) throw profileErr;
+
+        // 2. Update Auth Metadata (Syncs names and roles to JWT)
+        const { error: authErrUpdate } = await supabaseAdmin.auth.admin.updateUserById(id, {
+            user_metadata: { first_name: firstName, last_name: lastName, role: role }
+        });
+
+        if (authErrUpdate) {
+             console.error("Failed to sync auth metadata:", authErrUpdate);
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (err) {
+        console.error("Critical error in PATCH /api/admin/users:", err);
+        return NextResponse.json({ error: "Failed to update user." }, { status: 500 });
+    }
+}

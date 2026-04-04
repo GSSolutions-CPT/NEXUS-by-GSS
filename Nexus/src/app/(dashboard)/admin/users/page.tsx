@@ -33,10 +33,12 @@ export default function UserManagementPage() {
 
     // Modal
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const [email, setEmail] = useState("");
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
-    const [role, setRole] = useState("GroupAdmin");
+    const [role, setRole] = useState<UserProfile["role"]>("GroupAdmin");
     const [unitId, setUnitId] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [modalError, setModalError] = useState("");
@@ -67,20 +69,38 @@ export default function UserManagementPage() {
 
     useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-    const handleInvite = async (e: FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
         setModalError("");
         setInviteLink("");
         try {
+            const method = isEditMode ? "PATCH" : "POST";
+            const payload = { 
+                id: editingUserId,
+                email, 
+                firstName, 
+                lastName, 
+                role, 
+                unitId: unitId || null 
+            };
+
             const res = await fetch("/api/admin/users", {
-                method: "POST",
+                method,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, firstName, lastName, role, unitId: unitId || null }),
+                body: JSON.stringify(payload),
             });
+            
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Failed to invite user");
-            setInviteLink(data.inviteLink || "");
+            if (!res.ok) throw new Error(data.error || `Failed to ${isEditMode ? "update" : "invite"} user`);
+            
+            if (isEditMode) {
+                setSuccessMsg(`User "${firstName} ${lastName}" updated successfully.`);
+                resetModal();
+                setTimeout(() => setSuccessMsg(null), 3000);
+            } else {
+                setInviteLink(data.inviteLink || "");
+            }
             fetchUsers();
         } catch (err: unknown) {
             if (err instanceof Error) setModalError(err.message);
@@ -110,9 +130,21 @@ export default function UserManagementPage() {
         }
     };
 
+    const openEditModal = (user: UserProfile) => {
+        setEditingUserId(user.id);
+        setFirstName(user.first_name);
+        setLastName(user.last_name);
+        setEmail(user.email);
+        setRole(user.role);
+        setUnitId(user.unit_id || "");
+        setIsEditMode(true);
+        setIsModalOpen(true);
+    };
+
     const resetModal = () => {
         setEmail(""); setFirstName(""); setLastName(""); setRole("GroupAdmin"); setUnitId("");
         setModalError(""); setInviteLink(""); setCopied(false); setIsModalOpen(false);
+        setIsEditMode(false); setEditingUserId(null);
     };
 
     // Filtering
@@ -154,7 +186,7 @@ export default function UserManagementPage() {
                     <h1 className="text-3xl font-bold text-white tracking-tight">User Management</h1>
                     <p className="text-slate-400 mt-1">Manage system administrators, unit owners, and security guards.</p>
                 </div>
-                <button onClick={() => { setIsModalOpen(true); setModalError(""); setInviteLink(""); setCopied(false); }}
+                <button onClick={() => { resetModal(); setIsModalOpen(true); }}
                     className="flex flex-shrink-0 items-center justify-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-lg font-medium transition-all shadow-[0_0_15px_rgba(14,165,233,0.3)] hover:shadow-[0_0_25px_rgba(14,165,233,0.5)]">
                     <UserPlus className="w-5 h-5 flex-shrink-0" />
                     Invite User
@@ -260,7 +292,7 @@ export default function UserManagementPage() {
                                                 </div>
                                             </td>
                                             <td className="p-4 text-right pr-6 whitespace-nowrap">
-                                                <button onClick={() => alert("Edit user functionality not implemented yet.")}
+                                                <button onClick={() => openEditModal(u)}
                                                     className="text-slate-400 hover:text-sky-400 transition-colors p-2 mr-1" title="Edit user">
                                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                                 </button>
@@ -278,15 +310,19 @@ export default function UserManagementPage() {
                 )}
             </div>
 
-            {/* Invite Modal */}
+            {/* Invite/Edit Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
-                    <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md overflow-hidden">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
 
                         <div className="p-5 border-b border-slate-700/50 flex items-center justify-between bg-slate-800/50">
                             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <UserPlus className="w-5 h-5 text-sky-400" />
-                                Invite New User
+                                {isEditMode ? (
+                                    <svg className="w-5 h-5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                ) : (
+                                    <UserPlus className="w-5 h-5 text-sky-400" />
+                                )}
+                                {isEditMode ? "Edit User Profile" : "Invite New User"}
                             </h2>
                             <button onClick={resetModal} className="text-slate-400 hover:text-white transition-colors">
                                 <X className="w-5 h-5" />
@@ -303,9 +339,11 @@ export default function UserManagementPage() {
                                     </p>
                                     <div className="relative">
                                         <textarea
+                                            id="invite-link"
                                             readOnly
                                             value={inviteLink}
                                             rows={3}
+                                            aria-label="Invite Link"
                                             className="w-full p-3 rounded-lg bg-slate-900/70 border border-slate-700 text-xs text-slate-300 font-mono resize-none focus:outline-none"
                                         />
                                         <button
@@ -323,29 +361,29 @@ export default function UserManagementPage() {
                             </div>
                         ) : (
                             /* Form */
-                            <form onSubmit={handleInvite} className="p-5 space-y-4">
+                            <form onSubmit={handleSubmit} className="p-5 space-y-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-400 mb-1">First Name <span className="text-rose-500">*</span></label>
-                                        <input type="text" required value={firstName} onChange={e => setFirstName(e.target.value)}
+                                        <label htmlFor="first-name" className="block text-xs font-medium text-slate-400 mb-1">First Name <span className="text-rose-500">*</span></label>
+                                        <input id="first-name" type="text" required value={firstName} onChange={e => setFirstName(e.target.value)}
                                             className="w-full h-10 px-3 rounded-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-600 text-sm focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 outline-none transition-all" placeholder="Jane" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-400 mb-1">Last Name <span className="text-rose-500">*</span></label>
-                                        <input type="text" required value={lastName} onChange={e => setLastName(e.target.value)}
+                                        <label htmlFor="last-name" className="block text-xs font-medium text-slate-400 mb-1">Last Name <span className="text-rose-500">*</span></label>
+                                        <input id="last-name" type="text" required value={lastName} onChange={e => setLastName(e.target.value)}
                                             className="w-full h-10 px-3 rounded-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-600 text-sm focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 outline-none transition-all" placeholder="Smith" />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-400 mb-1">Email <span className="text-rose-500">*</span></label>
-                                    <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                                        className="w-full h-10 px-3 rounded-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-600 text-sm focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 outline-none transition-all" placeholder="jane@example.com" />
+                                    <label htmlFor="email-address" className="block text-xs font-medium text-slate-400 mb-1">Email {isEditMode ? "(Read-only)" : <span className="text-rose-500">*</span>}</label>
+                                    <input id="email-address" type="email" required disabled={isEditMode} value={email} onChange={e => setEmail(e.target.value)}
+                                        className="w-full h-10 px-3 rounded-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-600 text-sm focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 outline-none transition-all disabled:opacity-50" placeholder="jane@example.com" />
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-400 mb-1">System Role <span className="text-rose-500">*</span></label>
-                                    <select value={role} onChange={e => setRole(e.target.value)}
+                                    <label htmlFor="user-role" className="block text-xs font-medium text-slate-400 mb-1">System Role <span className="text-rose-500">*</span></label>
+                                    <select id="user-role" value={role} onChange={e => setRole(e.target.value as UserProfile["role"])}
                                         className="w-full h-10 px-3 rounded-lg bg-slate-900/50 border border-slate-700 text-white text-sm focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 outline-none transition-all appearance-none">
                                         <option value="GroupAdmin">Group Admin (Owner / Tenant)</option>
                                         <option value="Guard">Security Guard</option>
@@ -355,8 +393,8 @@ export default function UserManagementPage() {
 
                                 {role === "GroupAdmin" && unitOptions.length > 0 && (
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-400 mb-1">Assign to Unit</label>
-                                        <select value={unitId} onChange={e => setUnitId(e.target.value)}
+                                        <label htmlFor="assigned-unit" className="block text-xs font-medium text-slate-400 mb-1">Assign to Unit</label>
+                                        <select id="assigned-unit" value={unitId} onChange={e => setUnitId(e.target.value)}
                                             className="w-full h-10 px-3 rounded-lg bg-slate-900/50 border border-slate-700 text-white text-sm focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 outline-none transition-all appearance-none">
                                             <option value="">— No unit —</option>
                                             {unitOptions.map(u => (
@@ -379,7 +417,7 @@ export default function UserManagementPage() {
                                     <button type="submit" disabled={isSubmitting}
                                         className="flex-1 py-2 rounded-lg font-medium text-sm bg-sky-500 hover:bg-sky-400 text-white transition-all shadow-lg shadow-sky-500/20 disabled:opacity-50 flex items-center justify-center gap-2">
                                         {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                                        Create User
+                                        {isEditMode ? "Save Changes" : "Create User"}
                                     </button>
                                 </div>
                             </form>

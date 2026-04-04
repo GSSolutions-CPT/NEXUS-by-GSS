@@ -48,3 +48,40 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
+
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+    try {
+        const supabase = await createClient();
+        const { data: { user }, error: authErr } = await supabase.auth.getUser();
+
+        if (authErr || !user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single();
+
+        if (profile?.role !== 'SuperAdmin') {
+            return NextResponse.json({ error: "Forbidden: SuperAdmin access required" }, { status: 403 });
+        }
+
+        const params = await context.params;
+        const ticketId = params.id;
+
+        const { error } = await supabase
+            .from("maintenance_tickets")
+            .delete()
+            .eq("id", ticketId);
+
+        if (error) throw error;
+
+        return NextResponse.json({ success: true, message: "Ticket deleted successfully" });
+
+    } catch (err) {
+        console.error("DELETE /api/maintenance/[id] err:", err);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    }
+}

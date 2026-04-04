@@ -193,6 +193,30 @@ export default function AdminMaintenancePage() {
                                             <div className="text-[10px] text-slate-500 mt-2 line-clamp-2">
                                                 {ticket.description}
                                             </div>
+
+                                            {/* Action Buttons */}
+                                            <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (confirm("Are you sure you want to delete this maintenance ticket?")) {
+                                                            fetch(`/api/maintenance/${ticket.id}`, { method: 'DELETE' })
+                                                                .then(res => {
+                                                                    if (res.ok) {
+                                                                        setTickets(prev => prev.filter(t => t.id !== ticket.id));
+                                                                    } else {
+                                                                        alert("Failed to delete ticket");
+                                                                    }
+                                                                })
+                                                                .catch(err => console.error(err));
+                                                        }
+                                                    }}
+                                                    className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-md transition-colors"
+                                                    title="Delete Ticket"
+                                                >
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                </button>
+                                            </div>
                                             
                                             {/* Mobile Move Buttons (only visible on small screens since drag-drop is hard on touch) */}
                                             <div className="md:hidden pt-3 mt-3 border-t border-slate-700 flex gap-2">

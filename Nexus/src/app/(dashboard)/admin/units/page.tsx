@@ -30,6 +30,8 @@ export default function UnitsManagementPage() {
 
     // Modal state
     const [showModal, setShowModal] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingUnitId, setEditingUnitId] = useState<string | null>(null);
     const [newName, setNewName] = useState("");
     const [newType, setNewType] = useState<"Business" | "Residential">("Business");
     const [newFloor, setNewFloor] = useState("");
@@ -65,29 +67,32 @@ export default function UnitsManagementPage() {
         fetchUnits();
     }, [fetchUnits]);
 
-    const handleAddUnit = async () => {
+    const handleSubmit = async () => {
         setIsSubmitting(true);
         setError(null);
         setSuccessMsg(null);
         try {
+            const method = isEditMode ? "PATCH" : "POST";
+            const payload = {
+                id: editingUnitId,
+                name: newName,
+                type: newType,
+                floor: newFloor || null,
+                accessGroupIds: selectedGroupIds,
+            };
+
             const res = await fetch("/api/admin/units", {
-                method: "POST",
+                method,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: newName,
-                    type: newType,
-                    floor: newFloor || null,
-                    accessGroupIds: selectedGroupIds,
-                }),
+                body: JSON.stringify(payload),
             });
             const json = await res.json();
-            if (!res.ok) throw new Error(json.error || "Failed to create unit");
-            setSuccessMsg(`Unit "${newName}" created successfully!`);
-            setNewName("");
-            setNewFloor("");
-            setSelectedGroupIds([]);
-            setShowModal(false);
+            if (!res.ok) throw new Error(json.error || `Failed to ${isEditMode ? "update" : "create"} unit`);
+            
+            setSuccessMsg(`Unit "${newName}" ${isEditMode ? "updated" : "created"} successfully!`);
+            resetModal();
             fetchUnits();
+            setTimeout(() => setSuccessMsg(null), 4000);
         } catch (err: unknown) {
             if (err instanceof Error) setError(err.message);
         } finally {
@@ -101,10 +106,34 @@ export default function UnitsManagementPage() {
             const res = await fetch(`/api/admin/units?id=${unitId}`, { method: "DELETE" });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || "Failed to delete unit");
+            setSuccessMsg(`Unit "${unitName}" deleted successfully.`);
             fetchUnits();
+            setTimeout(() => setSuccessMsg(null), 4000);
         } catch (err: unknown) {
             if (err instanceof Error) setError(err.message);
         }
+    };
+
+    const openEditModal = (unit: Unit) => {
+        setEditingUnitId(unit.id);
+        setNewName(unit.name);
+        setNewType(unit.type);
+        setNewFloor(unit.floor || "");
+        setSelectedGroupIds(unit.access_groups?.map(g => g.id) || []);
+        setIsEditMode(true);
+        setShowModal(true);
+        setError(null);
+        setSuccessMsg(null);
+    };
+
+    const resetModal = () => {
+        setNewName("");
+        setNewType("Business");
+        setNewFloor("");
+        setSelectedGroupIds([]);
+        setShowModal(false);
+        setIsEditMode(false);
+        setEditingUnitId(null);
     };
 
     const toggleGroup = (id: number) => {
@@ -134,7 +163,7 @@ export default function UnitsManagementPage() {
                     <p className="text-slate-400 mt-1">Manage businesses, residential units, and their lift segregation rules.</p>
                 </div>
                 <button
-                    onClick={() => { setShowModal(true); setError(null); setSuccessMsg(null); }}
+                    onClick={() => { resetModal(); setShowModal(true); }}
                     className="flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-lg font-medium transition-all shadow-[0_0_15px_rgba(14,165,233,0.3)] hover:shadow-[0_0_25px_rgba(14,165,233,0.5)]"
                 >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -263,7 +292,7 @@ export default function UnitsManagementPage() {
                                             </td>
                                             <td className="p-4 text-right pr-6 whitespace-nowrap">
                                                 <button
-                                                    onClick={() => alert("Edit unit functionality not implemented yet.")}
+                                                    onClick={() => openEditModal(unit)}
                                                     className="text-slate-400 hover:text-sky-400 transition-colors p-2 mr-1"
                                                     title="Edit unit"
                                                 >
@@ -286,21 +315,21 @@ export default function UnitsManagementPage() {
                 )}
             </div>
 
-            {/* Add Unit Modal */}
+            {/* Add/Edit Unit Modal */}
             {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5 animate-in zoom-in-95 duration-200">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-white">Add New Unit</h2>
-                            <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                            <h2 className="text-xl font-bold text-white">{isEditMode ? "Edit Unit" : "Add New Unit"}</h2>
+                            <button onClick={resetModal} className="text-slate-400 hover:text-white transition-colors" title="Close Modal">
                                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
 
                         {/* Unit Name */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">Unit Name *</label>
-                            <input type="text" placeholder="e.g. Apt 402 or Digital Agency Co." value={newName} onChange={(e) => setNewName(e.target.value)}
+                            <label htmlFor="unit-name" className="block text-sm font-medium text-slate-300 mb-1">Unit Name *</label>
+                            <input id="unit-name" type="text" placeholder="e.g. Apt 402 or Digital Agency Co." value={newName} onChange={(e) => setNewName(e.target.value)}
                                 className="w-full h-10 px-3 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 text-sm focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all" />
                         </div>
 
@@ -319,8 +348,8 @@ export default function UnitsManagementPage() {
 
                         {/* Floor */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">Floor / Location</label>
-                            <input type="text" placeholder="e.g. Floor 4" value={newFloor} onChange={(e) => setNewFloor(e.target.value)}
+                            <label htmlFor="unit-floor" className="block text-sm font-medium text-slate-300 mb-1">Floor / Location</label>
+                            <input id="unit-floor" type="text" placeholder="e.g. Floor 4" value={newFloor} onChange={(e) => setNewFloor(e.target.value)}
                                 className="w-full h-10 px-3 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 text-sm focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all" />
                         </div>
 
@@ -342,11 +371,11 @@ export default function UnitsManagementPage() {
 
                         {/* Submit */}
                         <button
-                            onClick={handleAddUnit}
+                            onClick={handleSubmit}
                             disabled={isSubmitting || !newName}
                             className="w-full py-2.5 bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold rounded-lg transition-all shadow-[0_0_15px_rgba(14,165,233,0.3)] hover:shadow-[0_0_25px_rgba(14,165,233,0.5)]"
                         >
-                            {isSubmitting ? "Creating..." : "Create Unit"}
+                            {isSubmitting ? (isEditMode ? "Saving..." : "Creating...") : (isEditMode ? "Save Changes" : "Create Unit")}
                         </button>
                     </div>
                 </div>
