@@ -237,10 +237,9 @@ export default function GuardDashboardPage() {
                             ) : filteredDirectory.length === 0 ? (
                                 <div className="text-center text-slate-600 text-xs font-bold uppercase tracking-widest py-12 opacity-50">Zero matches in directory.</div>
                             ) : (
-                                filteredDirectory.map((d, idx) => (
+                                filteredDirectory.map((d) => (
                                     <div key={d.id} 
-                                         className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl hover:bg-slate-800 transition-all group animate-fade-in animate-staggered"
-                                         style={{ "--stagger-delay": `${idx * 0.05}s` } as React.CSSProperties}>
+                                         className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl hover:bg-slate-800 transition-all group animate-fade-in animate-staggered">
                                         <div className="flex justify-between items-center">
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-2 mb-1.5">
