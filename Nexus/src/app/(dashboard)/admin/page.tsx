@@ -192,8 +192,8 @@ export default function AdminDashboardPage() {
                                     const icon = logIcon(log.event_type);
                                     return (
                                         <div key={log.id} 
-                                             className="flex items-start gap-5 p-5 rounded-2xl bg-slate-900/60 hover:bg-slate-800/80 transition-all border border-slate-800 hover:border-slate-700/50 group animate-fade-in"
-                                             style={{ animationDelay: `${idx * 0.1}s` }}>
+                                             className="flex items-start gap-5 p-5 rounded-2xl bg-slate-900/60 hover:bg-slate-800/80 transition-all border border-slate-800 hover:border-slate-700/50 group animate-fade-in animate-staggered"
+                                             style={{ "--stagger-delay": `${idx * 0.1}s` } as React.CSSProperties}>
                                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 ${icon.bg}`}>
                                                 <svg className={`w-6 h-6 ${icon.icon}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={icon.path} />

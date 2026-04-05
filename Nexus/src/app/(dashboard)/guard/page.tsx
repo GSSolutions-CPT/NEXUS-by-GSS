@@ -216,7 +216,7 @@ export default function GuardDashboardPage() {
 
                 {/* Right — Community Directory */}
                 <div className="space-y-6">
-                    <div className="glass-card shadow-2xl overflow-hidden sticky top-28 flex flex-col animate-fade-in delay-200" style={{ height: "calc(100vh - 10rem)" }}>
+                    <div className="glass-card shadow-2xl overflow-hidden sticky top-28 flex flex-col animate-fade-in delay-200 h-dashboard-container">
                         <div className="p-6 border-b border-slate-700/50 bg-slate-900/60 ">
                             <h3 className="font-black text-white uppercase tracking-widest text-sm mb-4 flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
@@ -239,8 +239,8 @@ export default function GuardDashboardPage() {
                             ) : (
                                 filteredDirectory.map((d, idx) => (
                                     <div key={d.id} 
-                                         className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl hover:bg-slate-800 transition-all group animate-fade-in"
-                                         style={{ animationDelay: `${idx * 0.05}s` }}>
+                                         className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl hover:bg-slate-800 transition-all group animate-fade-in animate-staggered"
+                                         style={{ "--stagger-delay": `${idx * 0.05}s` } as React.CSSProperties}>
                                         <div className="flex justify-between items-center">
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-2 mb-1.5">
