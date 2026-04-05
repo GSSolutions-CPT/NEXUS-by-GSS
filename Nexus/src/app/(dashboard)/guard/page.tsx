@@ -76,16 +76,15 @@ export default function GuardDashboardPage() {
         setIsOpeningBoom(true);
         setBoomStatus("idle");
         try {
-            const bridgeUrl = process.env.NEXT_PUBLIC_BRIDGE_URL || "http://localhost:5000";
-            const res = await fetch(`${bridgeUrl}/api/opendoor`, {
+            const res = await fetch("/api/guard/pulse-gate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ door: 1, action: "pulse" }),
             });
-            if (!res.ok) throw new Error("Bridge returned an error");
+            if (!res.ok) throw new Error("Bridge proxy failed");
             setBoomStatus("success");
         } catch {
-            // Bridge might be offline — still show feedback
+            // Proxy might be offline or bridge unreachable
             setBoomStatus("error");
         } finally {
             setIsOpeningBoom(false);
@@ -94,13 +93,13 @@ export default function GuardDashboardPage() {
     };
 
     const filteredDirectory = directory.filter(d =>
-        `${d.first_name} ${d.last_name} ${d.unit_name}`.toLowerCase().includes(dirSearch.toLowerCase())
+        `${d.first_name || ""} ${d.last_name || ""} ${d.unit_name || ""}`.toLowerCase().includes(dirSearch.toLowerCase())
     );
 
     const fmt = (d: string) => new Date(d).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-8 animate-fade-in font-sans">
 
             {activeCall && (
                 <GuardCaller 
@@ -110,97 +109,100 @@ export default function GuardDashboardPage() {
             )}
 
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight">Main Gate Station</h1>
-                    <p className="text-slate-400 mt-1">Operational dashboard for verifying arrivals and emergency overrides.</p>
+                    <h1 className="text-4xl font-black text-white tracking-tighter text-gradient uppercase">Main Gate Station</h1>
+                    <p className="text-slate-400 mt-1 font-medium italic">Operational dashboard for mission-critical gate operations.</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <button onClick={fetchData} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 text-sm transition-colors">
-                        <RefreshCw className="w-4 h-4" /> Refresh
+                <div className="flex items-center gap-4">
+                    <button onClick={fetchData} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-sm font-bold transition-all hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]">
+                        <RefreshCw className="w-4 h-4" /> REFRESH
                     </button>
-                    <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg font-medium shadow-[0_0_15px_rgba(16,185,129,0.1)] flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
-                        System Online
+                    <div className="px-5 py-2.5 bg-emerald-500/10 border-2 border-emerald-500/30 text-emerald-400 rounded-xl font-black text-xs uppercase tracking-widest shadow-[0_0_25px_rgba(16,185,129,0.15)] flex items-center gap-3">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                        SYSTEM CONNECTED
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                 {/* Left — Controls + Roster */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 space-y-8">
 
                     {/* Boom Gate Controls */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <button
                             onClick={handleOpenBoomGate}
                             disabled={isOpeningBoom}
-                            className={`p-6 rounded-2xl font-bold transition-all flex flex-col items-center justify-center gap-3 ${boomStatus === "success" ? "bg-emerald-500 text-white shadow-[0_4px_14px_rgba(16,185,129,0.4)]"
-                                    : boomStatus === "error" ? "bg-rose-600 text-white shadow-[0_4px_14px_rgba(239,68,68,0.4)]"
-                                        : "bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-400 text-white shadow-[0_4px_14px_0_rgba(14,165,233,0.39)] hover:shadow-[0_6px_20px_rgba(14,165,233,0.23)] hover:-translate-y-0.5"
-                                } disabled:shadow-none disabled:transform-none`}
+                            className={`p-10 rounded-3xl font-black transition-all flex flex-col items-center justify-center gap-4 text-center group ${boomStatus === "success" ? "bg-emerald-500 text-white shadow-[0_0_40px_rgba(16,185,129,0.5)] border-4 border-emerald-400/50"
+                                    : boomStatus === "error" ? "bg-rose-600 text-white shadow-[0_0_40px_rgba(225,29,72,0.5)] border-4 border-rose-500/50"
+                                        : "bg-sky-500 hover:bg-sky-400 disabled:bg-slate-800 disabled:text-slate-600 text-white shadow-[0_15px_40px_-5px_rgba(14,165,233,0.4)] hover:shadow-[0_20px_60px_-10px_rgba(14,165,233,0.5)] hover:-translate-y-2 active:scale-95 border-b-8 border-sky-700 hover:border-sky-600"
+                                } disabled:shadow-none disabled:transform-none disabled:border-slate-800`}
                         >
-                            <svg className={`w-10 h-10 ${isOpeningBoom ? "animate-pulse" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                            <svg className={`w-14 h-14 ${isOpeningBoom ? "animate-bounce" : "group-hover:scale-110 transition-transform"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 10l7-7m0 0l7 7m-7-7v18" />
                             </svg>
-                            <span className="text-xl">
-                                {isOpeningBoom ? "Sending Signal..." : boomStatus === "success" ? "✓ Gate Opened!" : boomStatus === "error" ? "Bridge Offline" : "OPEN BOOM GATE (IN)"}
+                            <span className="text-2xl uppercase tracking-tighter">
+                                {isOpeningBoom ? "Syncing..." : boomStatus === "success" ? "GATE PULSED" : boomStatus === "error" ? "HARDWARE ERROR" : "OPEN GATE (ENTER)"}
                             </span>
                         </button>
 
-                        <button className="p-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold transition-all shadow-sm flex flex-col items-center justify-center gap-3">
-                            <svg className="w-10 h-10 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        <button className="p-10 rounded-3xl bg-slate-900 hover:bg-slate-800 text-slate-100 border-2 border-slate-800 hover:border-rose-500/30 font-black transition-all flex flex-col items-center justify-center gap-4 group active:scale-95">
+                            <svg className="w-14 h-14 text-rose-500 group-hover:animate-ping" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
-                            <span className="text-xl">EMERGENCY LOCKDOWN</span>
+                            <span className="text-2xl uppercase tracking-tighter text-rose-500">LOCKDOWN MODE</span>
                         </button>
                     </div>
 
                     {/* Parking Roster */}
-                    <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl overflow-hidden backdrop-blur-sm">
-                        <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                <svg className="w-5 h-5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                                </svg>
-                                Expected Visitors — Parking Required
+                    <div className="glass-card shadow-2xl overflow-hidden animate-fade-in delay-100">
+                        <div className="p-6 border-b border-slate-700/50 flex items-center justify-between bg-slate-900/40">
+                            <h3 className="text-xl font-black text-white flex items-center gap-3 uppercase tracking-tight">
+                                <span className="p-2 bg-sky-500/20 rounded-lg"><Megaphone className="w-5 h-5 text-sky-400" /></span>
+                                Arrival Manifest — Parking Required
                             </h3>
-                            <span className="text-sm text-slate-400">Today</span>
+                            <div className="flex items-center gap-2 text-xs font-black text-slate-500 uppercase tracking-widest">
+                                <span className="w-2 h-2 rounded-full bg-sky-500" /> Today
+                            </div>
                         </div>
-                        <div className="overflow-x-auto min-h-[200px]">
+                        <div className="overflow-x-auto min-h-[300px]">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-slate-700/50 bg-slate-900/40 text-xs uppercase tracking-wider text-slate-500 font-semibold">
-                                        <th className="p-4">Visitor</th>
-                                        <th className="p-4">Unit</th>
-                                        <th className="p-4">Time Window</th>
-                                        <th className="p-4">Status</th>
+                                    <tr className="border-b border-slate-700/30 bg-slate-950/40 text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+                                        <th className="p-6">Visitor Information</th>
+                                        <th className="p-6">Premises / Unit</th>
+                                        <th className="p-6">Time Window</th>
+                                        <th className="p-6">Auth Status</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-700/50">
+                                <tbody className="divide-y divide-slate-800/40 font-medium">
                                     {loading ? (
-                                        <tr><td colSpan={4} className="p-8 text-center text-slate-500">
-                                            <div className="flex justify-center mb-2"><span className="w-6 h-6 border-2 border-sky-500/20 border-t-sky-500 rounded-full animate-spin" /></div>
-                                            Fetching expected visitors...
+                                        <tr><td colSpan={4} className="p-20 text-center text-slate-500">
+                                            <div className="flex justify-center mb-4"><span className="w-10 h-10 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin" /></div>
+                                            <p className="uppercase tracking-widest font-black text-xs">Querying Subspace Manifest...</p>
                                         </td></tr>
                                     ) : visitors.length === 0 ? (
-                                        <tr><td colSpan={4} className="p-8 text-center text-slate-500">No visitors requiring parking today.</td></tr>
+                                        <tr><td colSpan={4} className="p-20 text-center text-slate-600">
+                                            <p className="uppercase tracking-widest font-black text-sm opacity-50 italic">No visitors scheduled with parking clearance.</p>
+                                        </td></tr>
                                     ) : (
                                         visitors.map((v) => (
-                                            <tr key={v.id} className="hover:bg-slate-800/50 transition-colors">
-                                                <td className="p-4">
-                                                    <p className="font-semibold text-white">{v.first_name} {v.last_name}</p>
+                                            <tr key={v.id} className="hover:bg-sky-500/[0.03] transition-colors group">
+                                                <td className="p-6">
+                                                    <p className="text-lg font-black text-white group-hover:text-sky-400 transition-colors uppercase tracking-tight">{v.first_name} {v.last_name}</p>
+                                                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">ID Verified</p>
                                                 </td>
-                                                <td className="p-4">
-                                                    <span className="text-sm font-medium text-sky-400 bg-sky-500/10 px-2 py-1 rounded">{v.unit_name}</span>
+                                                <td className="p-6">
+                                                    <span className="text-sm font-black text-sky-400 bg-sky-500/10 px-3 py-1.5 rounded-lg border border-sky-500/20 uppercase">{v.unit_name}</span>
                                                 </td>
-                                                <td className="p-4">
-                                                    <span className="text-sm text-slate-300">{fmt(v.start_time)} – {fmt(v.expiry_time)}</span>
+                                                <td className="p-6">
+                                                    <span className="text-sm text-slate-300 font-bold tabular-nums bg-slate-900/50 px-3 py-1.5 rounded-lg">{fmt(v.start_time)} – {fmt(v.expiry_time)}</span>
                                                 </td>
-                                                <td className="p-4">
-                                                    <span className={`text-xs font-semibold px-2 py-1 rounded-full border ${v.status === "Active" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                                                            : "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                                                <td className="p-6">
+                                                    <span className={`text-[10px] font-black px-3 py-1.5 rounded-full border-2 uppercase tracking-widest ${v.status === "Active" ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+                                                            : "bg-amber-500/10 border-amber-500/40 text-amber-400"
                                                         }`}>{v.status}</span>
                                                 </td>
                                             </tr>
@@ -214,40 +216,45 @@ export default function GuardDashboardPage() {
 
                 {/* Right — Community Directory */}
                 <div className="space-y-6">
-                    <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl overflow-hidden backdrop-blur-sm sticky top-28 flex flex-col" style={{ height: "calc(100vh - 10rem)" }}>
-                        <div className="p-4 border-b border-slate-700/50 bg-slate-900/40">
-                            <h3 className="font-bold text-white mb-3">Community Directory & Intercom</h3>
-                            <div className="relative">
-                                <svg className="w-5 h-5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    <div className="glass-card shadow-2xl overflow-hidden sticky top-28 flex flex-col animate-fade-in delay-200" style={{ height: "calc(100vh - 10rem)" }}>
+                        <div className="p-6 border-b border-slate-700/50 bg-slate-900/60 ">
+                            <h3 className="font-black text-white uppercase tracking-widest text-sm mb-4 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                                Community Intercom
+                            </h3>
+                            <div className="relative group">
+                                <svg className="w-5 h-5 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors group-focus-within:text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
-                                <input type="text" placeholder="Name or unit..." value={dirSearch} onChange={e => setDirSearch(e.target.value)}
-                                    className="w-full h-10 pl-10 pr-4 rounded-lg bg-slate-900/80 border border-slate-700 text-white placeholder:text-slate-500 text-sm focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all" />
+                                <input type="text" placeholder="FILTER BY UNIT OR NAME..." value={dirSearch} onChange={e => setDirSearch(e.target.value)}
+                                    className="w-full h-12 pl-12 pr-4 rounded-xl bg-slate-950/80 border-2 border-slate-800 text-white placeholder:text-slate-600 text-xs font-black uppercase tracking-widest focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500/50 transition-all outline-none" />
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
                             {loading ? (
-                                <div className="text-center text-slate-500 text-sm py-8">Loading...</div>
+                                <div className="text-center py-12"><div className="w-8 h-8 border-3 border-sky-500/20 border-t-sky-500 rounded-full animate-spin mx-auto" /></div>
                             ) : filteredDirectory.length === 0 ? (
-                                <div className="text-center text-slate-500 text-sm py-8">No results found.</div>
+                                <div className="text-center text-slate-600 text-xs font-bold uppercase tracking-widest py-12 opacity-50">Zero matches in directory.</div>
                             ) : (
-                                filteredDirectory.map(d => (
-                                    <div key={d.id} className="p-3 bg-slate-800/80 border border-slate-700 rounded-xl hover:bg-slate-800 transition-colors">
-                                        <div className="flex justify-between items-start mb-1">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="font-bold text-white text-sm">{d.unit_name || "No Unit"}</span>
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-700 text-slate-300 px-2 py-0.5 rounded">Owner</span>
+                                filteredDirectory.map((d, idx) => (
+                                    <div key={d.id} 
+                                         className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl hover:bg-slate-800 transition-all group animate-fade-in"
+                                         style={{ animationDelay: `${idx * 0.05}s` }}>
+                                        <div className="flex justify-between items-center">
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <span className="font-black text-white text-base tracking-tighter uppercase">{d.unit_name || "???"}</span>
+                                                    <span className="text-[9px] font-black uppercase tracking-widest bg-sky-500/20 text-sky-400 px-2.5 py-0.5 rounded-lg border border-sky-500/20">Authorized</span>
                                                 </div>
-                                                <p className="text-sm text-slate-400">{d.first_name} {d.last_name}</p>
+                                                <p className="text-sm text-slate-500 font-bold uppercase tracking-tight truncate">{d.first_name} {d.last_name}</p>
                                             </div>
                                             <button 
                                                 onClick={() => setActiveCall(d)}
-                                                className="w-10 h-10 rounded-xl bg-sky-500/10 hover:bg-sky-500 text-sky-400 hover:text-white border border-sky-500/30 flex items-center justify-center transition-all shadow-[0_0_10px_rgba(14,165,233,0.1)] hover:shadow-[0_0_15px_rgba(14,165,233,0.3)] active:scale-95 flex-shrink-0"
-                                                title="Call Tenant"
+                                                className="w-12 h-12 rounded-2xl bg-sky-500 hover:bg-emerald-500 text-white flex items-center justify-center transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] active:scale-95 flex-shrink-0 group-hover:scale-105"
+                                                title="Initiate Secure Call"
                                             >
-                                                <Phone className="w-5 h-5 fill-current" />
+                                                <Phone className="w-6 h-6 fill-current animate-pulse-gentle" />
                                             </button>
                                         </div>
                                     </div>

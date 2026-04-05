@@ -6,31 +6,38 @@ import { createClient } from "@/utils/supabase/server";
 export async function GET() {
     try {
         const supabase = await createClient();
-        const { data: { user }, error: authErr } = await supabase.auth.getUser();
-        if (authErr || !user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const { data: profile } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", user.id)
+        
+        // Fetch the most recent heartbeat/health check
+        const { data, error } = await supabase
+            .from("bridge_health")
+            .select("status, last_check_in")
+            .order("last_check_in", { ascending: false })
+            .limit(1)
             .single();
 
-        if (profile?.role !== "SuperAdmin") {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        if (error || !data) {
+            return NextResponse.json({ status: "offline", last_check_in: null });
         }
 
-        const bridgeUrl = process.env.BRIDGE_URL || "http://localhost:5000";
+        // Staleness Check: If last check-in was > 2 minutes ago, consider it offline
+        const lastCheckIn = new Date(data.last_check_in);
+        const now = new Date();
+        const diffMinutes = (now.getTime() - lastCheckIn.getTime()) / (1000 * 60);
 
-        const res = await fetch(`${bridgeUrl}/health`, {
-            signal: AbortSignal.timeout(3000),
-        });
+        if (diffMinutes > 2) {
+            return NextResponse.json({ 
+                status: "offline", 
+                last_check_in: data.last_check_in,
+                is_stale: true 
+            });
+        }
 
-        return NextResponse.json({
-            status: res.ok ? "online" : "offline",
+        return NextResponse.json({ 
+            status: data.status, 
+            last_check_in: data.last_check_in 
         });
-    } catch {
-        return NextResponse.json({ status: "offline" });
+    } catch (error) {
+        console.error("Bridge health error:", error);
+        return NextResponse.json({ status: "error" }, { status: 500 });
     }
 }
