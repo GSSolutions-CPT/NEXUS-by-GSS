@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { RefreshCw, Phone } from "lucide-react";
+import { RefreshCw, Phone, Megaphone } from "lucide-react";
 import GuardCaller from "@/components/intercom/GuardCaller";
 
 interface ExpectedVisitor {
