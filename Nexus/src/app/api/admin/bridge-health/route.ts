@@ -5,39 +5,30 @@ import { createClient } from "@/utils/supabase/server";
 // This prevents leaking the internal Bridge IP to the browser.
 export async function GET() {
     try {
-        const supabase = await createClient();
+        const bridgeUrl = process.env.BRIDGE_URL || process.env.NEXT_PUBLIC_BRIDGE_URL || "http://localhost:5000";
         
-        // Fetch the most recent heartbeat/health check
-        const { data, error } = await supabase
-            .from("bridge_health")
-            .select("status, last_check_in")
-            .order("last_check_in", { ascending: false })
-            .limit(1)
-            .single();
+        // Timeout the fetch after 3 seconds so the dashboard doesn't hang if ngrok/bridge is down
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        const res = await fetch(`${bridgeUrl}/health/impro`, { 
+            signal: controller.signal,
+            cache: 'no-store' 
+        });
+        clearTimeout(timeoutId);
 
-        if (error || !data) {
+        if (!res.ok) {
             return NextResponse.json({ status: "offline", last_check_in: null });
         }
 
-        // Staleness Check: If last check-in was > 2 minutes ago, consider it offline
-        const lastCheckIn = new Date(data.last_check_in);
-        const now = new Date();
-        const diffMinutes = (now.getTime() - lastCheckIn.getTime()) / (1000 * 60);
-
-        if (diffMinutes > 2) {
-            return NextResponse.json({ 
-                status: "offline", 
-                last_check_in: data.last_check_in,
-                is_stale: true 
-            });
-        }
-
+        const data = await res.json();
+        
         return NextResponse.json({ 
             status: data.status, 
-            last_check_in: data.last_check_in 
+            last_check_in: data.timestamp 
         });
     } catch (error) {
         console.error("Bridge health error:", error);
-        return NextResponse.json({ status: "error" }, { status: 500 });
+        return NextResponse.json({ status: "offline", last_check_in: null });
     }
 }
