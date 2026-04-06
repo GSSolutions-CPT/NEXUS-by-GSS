@@ -1,7 +1,8 @@
 {
     "css.lint.unknownAtRules": "ignore",
     "omnisharp.projectFilesExcludePattern": [
-        "**/DoorCommandsTestApp/**"
+        "**/DoorCommandsTestApp/**",
+        "**/Sample API Apps/**"
     ],
     "dotnet.defaultSolution": "ImproBridgeAPI/ImproBridgeAPI.sln",
     "files.exclude": {
