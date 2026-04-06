@@ -26,6 +26,13 @@ function ResetPasswordForm() {
                 });
             });
         }
+
+        // Also check for errors in the hash (fragment)
+        const hash = window.location.hash;
+        if (hash.includes("error_description=")) {
+            const desc = new URLSearchParams(hash.substring(1)).get("error_description");
+            if (desc) setError(desc.replace(/\+/g, " "));
+        }
     }, [searchParams, supabase]);
 
     const handleReset = async (e: React.FormEvent) => {

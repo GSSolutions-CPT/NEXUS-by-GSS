@@ -167,7 +167,7 @@ export async function POST(request: Request) {
 
         // Step 3: Generate a password-reset (magic) link so the user sets their own password.
         // Use a robust fallback chain — never rely on a single env var that may point to a dead preview deployment.
-        const PRODUCTION_URL = "https://nexus-by-gss.vercel.app";
+        const PRODUCTION_URL = "https://nexus.globalsecuritysolutions.co.za";
         const rawSiteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
         // Reject preview-deployment URLs (they are ephemeral and die after redeploys)
         const isDeadPreview = rawSiteUrl && /[a-z0-9]+-[a-z0-9]+-[a-z0-9]+-[a-z0-9]+\.vercel\.app/.test(rawSiteUrl);
