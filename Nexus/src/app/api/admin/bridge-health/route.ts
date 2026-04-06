@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
 
 // GET /api/admin/bridge-health — server-side proxy to check Bridge status
 // This prevents leaking the internal Bridge IP to the browser.
@@ -22,9 +21,10 @@ export async function GET() {
         }
 
         const data = await res.json();
+        const isOnline = data.status === "online" || data.status === "connected";
         
         return NextResponse.json({ 
-            status: data.status, 
+            status: isOnline ? "online" : "offline", 
             last_check_in: data.timestamp 
         });
     } catch (error) {

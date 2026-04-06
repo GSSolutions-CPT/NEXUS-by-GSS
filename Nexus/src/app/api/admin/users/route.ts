@@ -174,7 +174,7 @@ export async function POST(request: Request) {
         const siteUrl = (!rawSiteUrl || isDeadPreview) ? PRODUCTION_URL : rawSiteUrl.startsWith("http") ? rawSiteUrl : `https://${rawSiteUrl}`;
 
         const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
-            type: "recovery",
+            type: "invite",
             email,
             options: { redirectTo: `${siteUrl}/auth/reset-password` },
         });

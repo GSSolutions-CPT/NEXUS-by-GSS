@@ -19,8 +19,11 @@ function ResetPasswordForm() {
     useEffect(() => {
         const code = searchParams.get("code");
         if (code) {
-            supabase.auth.exchangeCodeForSession(code).catch(() => {
-                setError("This reset link has expired or is invalid. Please request a new one.");
+            // CRITICAL: Sign out first to prevent session clashing if an admin is testing the link
+            supabase.auth.signOut().then(() => {
+                supabase.auth.exchangeCodeForSession(code).catch(() => {
+                    setError("This link has expired or is invalid. Please request a new one.");
+                });
             });
         }
     }, [searchParams, supabase]);

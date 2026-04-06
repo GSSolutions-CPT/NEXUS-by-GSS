@@ -60,7 +60,8 @@ export default function AdminDashboardPage() {
             const res = await fetch("/api/admin/bridge-health");
             if (!res.ok) { setBridgeStatus("offline"); return; }
             const data = await res.json();
-            setBridgeStatus(data.status === "online" ? "online" : "offline");
+            const isOnline = data.status === "online" || data.status === "connected";
+            setBridgeStatus(isOnline ? "online" : "offline");
         } catch {
             setBridgeStatus("offline");
         }

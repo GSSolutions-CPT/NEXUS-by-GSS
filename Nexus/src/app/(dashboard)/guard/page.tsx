@@ -34,6 +34,7 @@ export default function GuardDashboardPage() {
     const [dirSearch, setDirSearch] = useState("");
     const [activeCall, setActiveCall] = useState<DirectoryEntry | null>(null);
     const [loading, setLoading] = useState(true);
+    const [bridgeStatus, setBridgeStatus] = useState<"checking" | "online" | "offline">("checking");
     const supabase = createClient();
 
     const fetchData = useCallback(async () => {
@@ -70,7 +71,22 @@ export default function GuardDashboardPage() {
         setLoading(false);
     }, [supabase]);
 
-    useEffect(() => { fetchData(); }, [fetchData]);
+    const checkBridge = useCallback(async () => {
+        setBridgeStatus("checking");
+        try {
+            const res = await fetch("/api/admin/bridge-health");
+            if (!res.ok) { setBridgeStatus("offline"); return; }
+            const data = await res.json();
+            setBridgeStatus(data.status === "online" ? "online" : "offline");
+        } catch {
+            setBridgeStatus("offline");
+        }
+    }, []);
+
+    useEffect(() => { 
+        fetchData(); 
+        checkBridge();
+    }, [fetchData, checkBridge]);
 
     const handleOpenBoomGate = async () => {
         setIsOpeningBoom(true);
@@ -118,9 +134,9 @@ export default function GuardDashboardPage() {
                     <button onClick={fetchData} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-sm font-bold transition-all hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]">
                         <RefreshCw className="w-4 h-4" /> REFRESH
                     </button>
-                    <div className="px-5 py-2.5 bg-emerald-500/10 border-2 border-emerald-500/30 text-emerald-400 rounded-xl font-black text-xs uppercase tracking-widest shadow-[0_0_25px_rgba(16,185,129,0.15)] flex items-center gap-3">
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
-                        SYSTEM CONNECTED
+                    <div className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-3 transition-colors ${bridgeStatus === "online" ? "bg-emerald-500/10 border-2 border-emerald-500/30 text-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.15)]" : "bg-rose-500/10 border-2 border-rose-500/30 text-rose-400 shadow-[0_0_25px_rgba(225,29,72,0.15)]"}`}>
+                        <div className={`w-2.5 h-2.5 rounded-full ${bridgeStatus === "online" ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" : "bg-rose-500 shadow-[0_0_10px_rgba(225,29,72,0.8)]"} animate-pulse`} />
+                        {bridgeStatus === "checking" ? "VERIFYING LINK..." : bridgeStatus === "online" ? "BRIDGE ONLINE" : "BRIDGE OFFLINE"}
                     </div>
                 </div>
             </div>
