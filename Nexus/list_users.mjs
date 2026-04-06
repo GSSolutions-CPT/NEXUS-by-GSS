@@ -14,18 +14,18 @@ const supabaseAdmin = createClient(
 );
 
 async function check() {
-    const { data: profiles, error: pError } = await supabaseAdmin.from('profiles').select('id, role, full_name');
+    const { data: profiles, error: pError } = await supabaseAdmin.from('profiles').select('id, role, first_name, last_name');
     if (pError) console.error("Profiles Error:", pError);
     
     const { data: auth, error: aError } = await supabaseAdmin.auth.admin.listUsers();
     if (aError) console.error("Auth Error:", aError);
 
-    const merged = profiles.map(p => {
+    const merged = (profiles || []).map(p => {
         const authUser = auth.users.find(u => u.id === p.id);
         return {
             email: authUser?.email,
             role: p.role,
-            full_name: p.full_name
+            full_name: `${p.first_name || ''} ${p.last_name || ''}`.trim()
         };
     });
 
