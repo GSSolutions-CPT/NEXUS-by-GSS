@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, FormEvent } from "react";
-import { X, UserPlus, Loader2, Trash2 } from "lucide-react";
+import { X, UserPlus, Loader2, Trash2, Share2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 interface UserProfile {
@@ -43,6 +43,8 @@ export default function UserManagementPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [modalError, setModalError] = useState("");
     const [inviteLink, setInviteLink] = useState("");
+    const [whatsappShareUrl, setWhatsappShareUrl] = useState(""); // #8
+    const [fallbackMessage, setFallbackMessage] = useState(""); // #10
     const [copied, setCopied] = useState(false);
 
     const supabase = createClient();
@@ -74,6 +76,8 @@ export default function UserManagementPage() {
         setIsSubmitting(true);
         setModalError("");
         setInviteLink("");
+        setWhatsappShareUrl("");
+        setFallbackMessage("");
         try {
             const method = isEditMode ? "PATCH" : "POST";
             const payload = { 
@@ -98,8 +102,12 @@ export default function UserManagementPage() {
                 setSuccessMsg(`User "${firstName} ${lastName}" updated successfully.`);
                 resetModal();
                 setTimeout(() => setSuccessMsg(null), 3000);
+            } else if (data.fallbackMessage) {
+                // #10 — Link generation failed but user was created
+                setFallbackMessage(data.fallbackMessage);
             } else {
                 setInviteLink(data.inviteLink || "");
+                setWhatsappShareUrl(data.whatsappShareUrl || ""); // #8
             }
             fetchUsers();
         } catch (err: unknown) {
@@ -145,6 +153,7 @@ export default function UserManagementPage() {
         setEmail(""); setFirstName(""); setLastName(""); setRole("GroupAdmin"); setUnitId("");
         setModalError(""); setInviteLink(""); setCopied(false); setIsModalOpen(false);
         setIsEditMode(false); setEditingUserId(null);
+        setWhatsappShareUrl(""); setFallbackMessage(""); // #8 #10
     };
 
     // Filtering
@@ -329,13 +338,24 @@ export default function UserManagementPage() {
                             </button>
                         </div>
 
-                        {inviteLink ? (
+                        {fallbackMessage ? (
+                            /* #10 — Link gen failed but user was still created */
+                            <div className="p-5 space-y-4">
+                                <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 space-y-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-400">⚠ Account Created — Manual Step Required</p>
+                                    <p className="text-xs text-slate-300 leading-relaxed">{fallbackMessage}</p>
+                                </div>
+                                <button onClick={resetModal} className="w-full py-2 rounded-lg font-medium text-sm text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
+                                    Done
+                                </button>
+                            </div>
+                        ) : inviteLink ? (
                             /* Success State — Invite Link */
                             <div className="p-5 space-y-4">
                                 <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 space-y-3">
                                     <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">✓ User Created — Send This Link</p>
                                     <p className="text-xs text-slate-300">
-                                        Share this magic link with <span className="font-semibold text-white">{email}</span>. They click it to set their own password and log in.
+                                        Share this link with <span className="font-semibold text-white">{email}</span>. They click it to set their own password and log in.
                                     </p>
                                     <div className="relative">
                                         <textarea
@@ -350,10 +370,23 @@ export default function UserManagementPage() {
                                             onClick={copyLink}
                                             className={`mt-2 w-full py-2 rounded-lg text-xs font-semibold transition-all ${copied ? "bg-emerald-500 text-white" : "bg-slate-700 hover:bg-slate-600 text-slate-200"}`}
                                         >
-                                            {copied ? "✓ Copied!" : "Copy Link"}
+                                            {copied ? "✓ Copied!" : "📋 Copy Link"}
                                         </button>
                                     </div>
-                                    <p className="text-[10px] text-slate-500">Tip: Send via WhatsApp or email. The link expires after 24 hours.</p>
+                                    {/* #8 — WhatsApp direct share button */}
+                                    {whatsappShareUrl && (
+                                        <a
+                                            href={whatsappShareUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-[#25D366] hover:bg-[#1ebe57] text-white text-xs font-semibold transition-all"
+                                        >
+                                            <Share2 className="w-3.5 h-3.5" />
+                                            Share via WhatsApp
+                                        </a>
+                                    )}
+                                    {/* #11 — Expiry warning */}
+                                    <p className="text-[10px] text-amber-400/80 font-medium">⚠ This link expires in 24 hours.</p>
                                 </div>
                                 <button onClick={resetModal} className="w-full py-2 rounded-lg font-medium text-sm text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
                                     Done
@@ -391,17 +424,20 @@ export default function UserManagementPage() {
                                     </select>
                                 </div>
 
-                                {role === "GroupAdmin" && unitOptions.length > 0 && (
+                                {role === "GroupAdmin" && (
                                     <div>
-                                        <label htmlFor="assigned-unit" className="block text-xs font-medium text-slate-400 mb-1">Assign to Unit</label>
-                                        <select id="assigned-unit" value={unitId} onChange={e => setUnitId(e.target.value)}
+                                        {/* #13 — Unit is REQUIRED for GroupAdmin */}
+                                        <label htmlFor="assigned-unit" className="block text-xs font-medium text-slate-400 mb-1">
+                                            Assign to Unit <span className="text-rose-500">*</span>
+                                        </label>
+                                        <select id="assigned-unit" value={unitId} onChange={e => setUnitId(e.target.value)} required
                                             className="w-full h-10 px-3 rounded-lg bg-slate-900/50 border border-slate-700 text-white text-sm focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 outline-none transition-all appearance-none">
-                                            <option value="">— No unit —</option>
+                                            <option value="">— Select a unit —</option>
                                             {unitOptions.map(u => (
                                                 <option key={u.id} value={u.id}>{u.name} ({u.type})</option>
                                             ))}
                                         </select>
-                                        <p className="text-[10px] text-slate-500 mt-1">Optional. Links this admin to a specific property unit.</p>
+                                        <p className="text-[10px] text-rose-400/70 mt-1">Required: Group Admins must have a unit assigned.</p>
                                     </div>
                                 )}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Send, Share2, Copy, Check, MessageCircle, Mail, ArrowLeft, CalendarPlus, Clock } from "lucide-react";
+import { Plus, Trash2, Send, Share2, Copy, Check, MessageCircle, Mail, ArrowLeft, CalendarPlus, Clock, AlertTriangle } from "lucide-react";
 
 interface AccessWindow {
     date: string;
@@ -40,6 +40,11 @@ export default function InviteVisitorPage() {
     const [error, setError] = useState<string | null>(null);
     const [inviteResult, setInviteResult] = useState<InviteResult | null>(null);
     const [copied, setCopied] = useState(false);
+
+    // ── Bulk Upload State (#14) ──
+    const [bulkFile, setBulkFile] = useState<File | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [bulkResults, setBulkResults] = useState<any[] | null>(null);
 
     // ── Access Window Helpers ──
     const addWindow = () => {
@@ -151,6 +156,44 @@ export default function InviteVisitorPage() {
         }
     };
 
+    // ── Bulk Upload (#14) ──
+    const handleBulkUpload = async () => {
+        if (!bulkFile) return;
+        setLoading(true);
+        setError(null);
+        setBulkResults(null);
+
+        try {
+            const formData = new FormData();
+            formData.append("file", bulkFile);
+
+            const res = await fetch("/api/visitors/bulk", {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to process bulk upload.");
+
+            setBulkResults(data.results || []);
+            setBulkFile(null); // Clear file input
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Bulk upload failed.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const downloadCsvTemplate = () => {
+        const csv = "FirstName,LastName,Phone,ValidFrom,ValidUntil\nJohn,Doe,+27821234567,2024-01-01,2024-01-05";
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "nexus_visitors_template.csv";
+        a.click();
+    };
+
     // ── Share Helpers ──
     const shareMessage = (result: InviteResult) =>
         `Hi ${result.firstName}, you've been invited to visit! 🔐\n\nOpen your digital access pass:\n${result.guestLink}\n\nYour PIN: ${result.pinCode}\n\nPresent the QR code or PIN at the gate.\n\nSecured by Global Security Solutions\nhttps://www.globalsecuritysolutions.co.za`;
@@ -208,7 +251,7 @@ export default function InviteVisitorPage() {
 
                         {/* Guest Link */}
                         <div className="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50 flex items-center gap-3">
-                            <input type="text" readOnly value={inviteResult.guestLink}
+                            <input type="text" readOnly value={inviteResult.guestLink} title="Guest Access Link" aria-label="Guest Access Link"
                                 className="flex-1 bg-transparent text-sm text-slate-300 font-mono outline-none truncate" />
                             <button onClick={() => handleCopyLink(inviteResult)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0">
@@ -316,12 +359,12 @@ export default function InviteVisitorPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold tracking-wide text-slate-400 uppercase">First Name</label>
-                                        <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} required placeholder="Jan"
+                                        <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} required placeholder="Jan" title="First Name" aria-label="First Name"
                                             className="w-full h-11 px-4 rounded-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500 transition-colors" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold tracking-wide text-slate-400 uppercase">Last Name</label>
-                                        <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} required placeholder="Van Der Merwe"
+                                        <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} required placeholder="Van Der Merwe" title="Last Name" aria-label="Last Name"
                                             className="w-full h-11 px-4 rounded-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500 transition-colors" />
                                     </div>
                                 </div>
@@ -331,12 +374,12 @@ export default function InviteVisitorPage() {
                                     <label className="text-xs font-bold tracking-wide text-slate-400 uppercase">Visitor Category</label>
                                     <div className="flex gap-4">
                                         <label className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${visitorType === "guest" ? "border-sky-500 bg-sky-500/10 text-white" : "border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-600 hover:text-slate-300"}`}>
-                                            <input type="radio" name="visitorType" value="guest" checked={visitorType === "guest"} onChange={() => setVisitorType("guest")} className="sr-only" />
+                                            <input type="radio" name="visitorType" value="guest" checked={visitorType === "guest"} onChange={() => setVisitorType("guest")} className="sr-only" aria-label="Standard Guest" />
                                             <span className="font-semibold text-sm">Standard Guest</span>
                                             <span className="text-[10px] text-center opacity-80">Flexible manual hours</span>
                                         </label>
                                         <label className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${visitorType === "contractor" ? "border-amber-500 bg-amber-500/10 text-white" : "border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-600 hover:text-slate-300"}`}>
-                                            <input type="radio" name="visitorType" value="contractor" checked={visitorType === "contractor"} onChange={() => setVisitorType("contractor")} className="sr-only" />
+                                            <input type="radio" name="visitorType" value="contractor" checked={visitorType === "contractor"} onChange={() => setVisitorType("contractor")} className="sr-only" aria-label="Contractor" />
                                             <span className="font-semibold text-sm">Contractor</span>
                                             <span className="text-[10px] text-center opacity-80">Strict Mon-Fri, 8AM-5PM</span>
                                         </label>
@@ -348,7 +391,7 @@ export default function InviteVisitorPage() {
                                     <label className="text-xs font-bold tracking-wide text-slate-400 uppercase">Mobile Number (For SMS Link)</label>
                                     <div className="flex">
                                         <span className="flex items-center justify-center px-4 bg-slate-800 border border-r-0 border-slate-700 rounded-l-lg text-slate-400 font-medium">+27</span>
-                                        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} required placeholder="82 123 4567"
+                                        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} required placeholder="82 123 4567" title="Mobile Number" aria-label="Mobile Number"
                                             className="w-full h-11 px-4 rounded-r-lg bg-slate-900/50 border border-slate-700 text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500 transition-colors" />
                                     </div>
                                 </div>
@@ -377,6 +420,7 @@ export default function InviteVisitorPage() {
                                                         <input type="date" value={window.date}
                                                             onChange={e => updateWindow(index, "date", e.target.value)}
                                                             required
+                                                            title="Access Date" aria-label="Access Date"
                                                             className="w-full h-9 px-2.5 rounded-lg bg-slate-950/50 border border-slate-700 text-white text-sm [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
                                                     </div>
 
@@ -388,6 +432,7 @@ export default function InviteVisitorPage() {
                                                         <input type="time" value={window.from}
                                                             onChange={e => updateWindow(index, "from", e.target.value)}
                                                             required
+                                                            title="Access Start Time" aria-label="Access Start Time"
                                                             className="w-full h-9 px-2.5 rounded-lg bg-slate-950/50 border border-slate-700 text-white text-sm [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
                                                     </div>
 
@@ -399,12 +444,14 @@ export default function InviteVisitorPage() {
                                                         <input type="time" value={window.to}
                                                             onChange={e => updateWindow(index, "to", e.target.value)}
                                                             required
+                                                            title="Access End Time" aria-label="Access End Time"
                                                             className="w-full h-9 px-2.5 rounded-lg bg-slate-950/50 border border-slate-700 text-white text-sm [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
                                                     </div>
 
                                                     {/* Remove */}
                                                     {accessWindows.length > 1 && (
                                                         <button type="button" onClick={() => removeWindow(index)}
+                                                            title="Remove Access Slot" aria-label="Remove Access Slot"
                                                             className="mt-4 p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors flex-shrink-0">
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
@@ -427,11 +474,13 @@ export default function InviteVisitorPage() {
                                             <div>
                                                 <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">Start Date</label>
                                                 <input type="date" value={contractorStartDate} onChange={e => setContractorStartDate(e.target.value)} required
+                                                    title="Contractor Start Date" aria-label="Contractor Start Date"
                                                     className="w-full h-10 px-3 rounded-lg bg-slate-950/50 border border-slate-700 text-white text-sm [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
                                             </div>
                                             <div>
                                                 <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">End Date</label>
                                                 <input type="date" value={contractorEndDate} onChange={e => setContractorEndDate(e.target.value)} required
+                                                    title="Contractor End Date" aria-label="Contractor End Date"
                                                     className="w-full h-10 px-3 rounded-lg bg-slate-950/50 border border-slate-700 text-white text-sm [color-scheme:dark] focus:outline-none focus:border-sky-500 transition-colors" />
                                             </div>
                                         </div>
@@ -469,22 +518,65 @@ export default function InviteVisitorPage() {
 
                     {/* Bulk Invite Form */}
                     {inviteType === "bulk" && (
-                        <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6 md:p-8 backdrop-blur-sm text-center">
-                            <div className="mb-8">
+                        <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6 md:p-8 backdrop-blur-sm">
+                            <div className="mb-8 text-center">
                                 <div className="w-20 h-20 bg-slate-800/80 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-700/50">
                                     <svg className="w-10 h-10 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
                                 </div>
                                 <h3 className="text-xl font-bold text-white mb-2">Upload CSV File</h3>
                                 <p className="text-sm text-slate-400">Perfect for events. Group Admins can invite up to 100 guests at once.</p>
                             </div>
-                            <div className="border-2 border-dashed border-slate-600 rounded-xl p-8 hover:bg-slate-800/50 hover:border-sky-500/50 transition-colors cursor-pointer group">
-                                <p className="text-slate-300 font-medium group-hover:text-sky-400 transition-colors">Click to browse or drag and drop</p>
-                                <p className="text-xs text-slate-500 mt-2">CSV must include FirstName, LastName, Phone, ValidFrom, ValidUntil</p>
-                            </div>
-                            <button className="mt-8 text-sm text-sky-400 hover:text-sky-300 font-medium flex items-center justify-center gap-2 mx-auto">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                Download CSV Template
-                            </button>
+
+                            {error && (
+                                <div className="p-3 mb-6 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-semibold rounded-lg text-center">
+                                    {error}
+                                </div>
+                            )}
+
+                            {bulkResults ? (
+                                <div className="space-y-4">
+                                    <h4 className="font-bold text-white mb-2">Upload Results</h4>
+                                    <div className="max-h-64 overflow-y-auto space-y-2 custom-scrollbar">
+                                        {bulkResults.map((r, i) => (
+                                            <div key={i} className={`p-3 rounded-lg flex items-start gap-3 border ${r.success ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                                                <div className="mt-0.5 flex-shrink-0">
+                                                    {r.success ? <Check className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="font-semibold text-sm">Row {r.row}: {r.name}</p>
+                                                    {r.error && <p className="text-xs opacity-80 mt-1">{r.error}</p>}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button onClick={() => setBulkResults(null)}
+                                        className="w-full py-3 mt-4 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium transition-colors">
+                                        Upload Another File
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <label className={`block border-2 border-dashed rounded-xl p-8 transition-colors cursor-pointer text-center group ${bulkFile ? 'border-sky-500 bg-sky-500/5' : 'border-slate-600 hover:border-sky-500/50 hover:bg-slate-800/50'}`}>
+                                        <input type="file" accept=".csv" className="hidden" onChange={e => setBulkFile(e.target.files?.[0] || null)} title="CSV File Upload" aria-label="CSV File Upload" />
+                                        <p className="text-slate-300 font-medium group-hover:text-sky-400 transition-colors">
+                                            {bulkFile ? bulkFile.name : "Click to browse or drag and drop"}
+                                        </p>
+                                        <p className="text-xs text-slate-500 mt-2">CSV must include FirstName, LastName, Phone, ValidFrom, ValidUntil</p>
+                                    </label>
+                                    
+                                    {bulkFile && (
+                                        <button onClick={handleBulkUpload} disabled={loading}
+                                            className="w-full mt-6 h-12 flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-400 text-white font-bold rounded-xl transition-all shadow-lg">
+                                            {loading ? <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : "Process CSV"}
+                                        </button>
+                                    )}
+
+                                    <button type="button" onClick={downloadCsvTemplate} className="mt-8 text-sm text-sky-400 hover:text-sky-300 font-medium flex items-center justify-center gap-2 mx-auto">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                        Download CSV Template
+                                    </button>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>

@@ -117,6 +117,13 @@ export async function POST(request: Request) {
         }
         const { email, firstName, lastName, role, unitId } = parseResult.data;
 
+        // #13 — Enforce unit assignment for GroupAdmin role
+        if (role === "GroupAdmin" && !unitId) {
+            return NextResponse.json({
+                error: "A unit assignment is required for Group Admin (Owner) accounts. Please select a unit before creating this user."
+            }, { status: 400 });
+        }
+
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         if (!serviceRoleKey) {
             return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
@@ -129,7 +136,6 @@ export async function POST(request: Request) {
         );
 
         // Step 1: Create the user account (confirmed) with a server-side temp password.
-        // The user will reset it via the magic link we generate below.
         const tempPassword = `Nex${randomInt(100000, 999999)}!Tmp`;
 
         const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
@@ -141,7 +147,6 @@ export async function POST(request: Request) {
 
         if (createErr || !newUser.user) {
             console.error(`[Admin User Creation Failed] ID: ${user.id} | Err:`, createErr);
-            // Handle duplicate email gracefully
             if (createErr?.message?.toLowerCase().includes("already")) {
                 return NextResponse.json({ error: "A user with this email already exists." }, { status: 409 });
             }
@@ -166,10 +171,8 @@ export async function POST(request: Request) {
         }
 
         // Step 3: Generate a password-reset (magic) link so the user sets their own password.
-        // Use a robust fallback chain — never rely on a single env var that may point to a dead preview deployment.
         const PRODUCTION_URL = "https://nexus.globalsecuritysolutions.co.za";
         const rawSiteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
-        // Reject preview-deployment URLs (they are ephemeral and die after redeploys)
         const isDeadPreview = rawSiteUrl && /[a-z0-9]+-[a-z0-9]+-[a-z0-9]+-[a-z0-9]+\.vercel\.app/.test(rawSiteUrl);
         const siteUrl = (!rawSiteUrl || isDeadPreview) ? PRODUCTION_URL : rawSiteUrl.startsWith("http") ? rawSiteUrl : `https://${rawSiteUrl}`;
 
@@ -179,13 +182,27 @@ export async function POST(request: Request) {
             options: { redirectTo: `${siteUrl}/auth/reset-password` },
         });
 
-        if (linkErr || !linkData?.properties?.action_link) {
+        // #8/#9 — Build WhatsApp share URL with the invite message
+        const inviteLink = linkData?.properties?.action_link || null;
+        let whatsappShareUrl: string | null = null;
+
+        if (inviteLink) {
+            const whatsappMsg = encodeURIComponent(
+                `Hi ${firstName}! 👋\n\nYour Nexus VMS account has been created.\n\n` +
+                `Click the link below to set your password and access your dashboard:\n${inviteLink}\n\n` +
+                `⚠️ This link expires in 24 hours.\n\nSecured by Global Security Solutions.`
+            );
+            whatsappShareUrl = `https://wa.me/?text=${whatsappMsg}`;
+        }
+
+        if (linkErr || !inviteLink) {
             console.error("Failed to generate magic link:", linkErr);
-            // Still a success — user exists, just no magic link
+            // #10 — Return with fallback instructions instead of failing
             return NextResponse.json({
                 success: true,
                 invited: false,
-                message: "User created. Could not generate invite link — ask them to use 'Forgot Password' on the login page.",
+                // #10 — Clear fallback message for admin to communicate
+                fallbackMessage: `Account created for ${email}. The invite link could not be generated. Please ask them to visit ${siteUrl} and use "Forgot Password" to set their own password.`,
                 userId: newUser.user.id,
             });
         }
@@ -195,7 +212,9 @@ export async function POST(request: Request) {
             invited: true,
             message: "User created successfully.",
             userId: newUser.user.id,
-            inviteLink: linkData.properties.action_link,
+            inviteLink,
+            whatsappShareUrl,   // #8 — WhatsApp direct share
+            linkExpiresIn: "24 hours", // #11 — Expiry info for UI
         });
 
     } catch (err) {
@@ -278,6 +297,13 @@ export async function PATCH(request: Request) {
 
         if (!id) return NextResponse.json({ error: "User ID is required" }, { status: 400 });
 
+        // #13 — Enforce unit requirement for GroupAdmin on edit too
+        if (role === "GroupAdmin" && !unitId) {
+            return NextResponse.json({
+                error: "A unit assignment is required for Group Admin (Owner) accounts."
+            }, { status: 400 });
+        }
+
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey!, {
             auth: { autoRefreshToken: false, persistSession: false }
@@ -303,7 +329,7 @@ export async function PATCH(request: Request) {
         });
 
         if (authErrUpdate) {
-             console.error("Failed to sync auth metadata:", authErrUpdate);
+            console.error("Failed to sync auth metadata:", authErrUpdate);
         }
 
         return NextResponse.json({ success: true });

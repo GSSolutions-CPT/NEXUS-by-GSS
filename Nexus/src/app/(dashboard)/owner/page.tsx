@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/utils/supabase/client";
-import { Megaphone, AlertTriangle, Info, BellRing } from "lucide-react";
+import { Megaphone, AlertTriangle, Info, BellRing, X } from "lucide-react";
 
 interface OwnerStats {
     activeToday: number;
@@ -39,6 +39,8 @@ export default function OwnerDashboardPage() {
     const [recentLogs, setRecentLogs] = useState<RecentLog[]>([]);
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(true);
+    const [noUnit, setNoUnit] = useState(false);
+    const [showWelcome, setShowWelcome] = useState(false);
     const supabase = useMemo(() => createClient(), []);
 
     const fetchData = useCallback(async () => {
@@ -53,6 +55,14 @@ export default function OwnerDashboardPage() {
             .single();
 
         if (!profile) return;
+
+        if (!profile.unit_id) {
+            setNoUnit(true);
+            setStats(prev => ({ ...prev, ownerName: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Owner' }));
+            setLoading(false);
+            return;
+        }
+        setNoUnit(false);
 
         const unitId = profile.unit_id;
         const ownerName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Owner";
@@ -100,7 +110,12 @@ export default function OwnerDashboardPage() {
     }, [supabase]);
 
     /* eslint-disable react-hooks/set-state-in-effect */
-    useEffect(() => { fetchData(); }, [fetchData]);
+    useEffect(() => {
+        fetchData();
+        if (typeof window !== 'undefined' && !localStorage.getItem('nexus_welcome_dismissed')) {
+            setShowWelcome(true);
+        }
+    }, [fetchData]);
     /* eslint-enable react-hooks/set-state-in-effect */
 
     const fmt = (d: string) => new Date(d).toLocaleString("en-ZA", { dateStyle: "short", timeStyle: "short" });
@@ -117,6 +132,64 @@ export default function OwnerDashboardPage() {
 
     return (
         <div className="space-y-6">
+
+            {/* #12 — Welcome Modal (shown on first login, dismissed via localStorage) */}
+            {showWelcome && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-5 border-b border-slate-700/50 flex items-center justify-between bg-slate-800/50">
+                            <h2 className="text-xl font-bold text-white">👋 Welcome to Nexus!</h2>
+                            <button onClick={() => { setShowWelcome(false); localStorage.setItem('nexus_welcome_dismissed', '1'); }}
+                                className="text-slate-400 hover:text-white transition-colors" title="Dismiss">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <p className="text-sm text-slate-300">Your 3 key actions as a unit owner:</p>
+                            <div className="space-y-3">
+                                {[
+                                    { icon: '🎫', title: 'Invite a Visitor', desc: 'Generate a PIN & access pass for guests or contractors.', href: '/owner/invite' },
+                                    { icon: '✅', title: 'View Active Passes', desc: 'See who currently has access to your unit.', href: '/owner/visitors' },
+                                    { icon: '📋', title: 'Access Logs', desc: 'Review the audit trail of all unit activity.', href: '/owner/logs' },
+                                ].map(item => (
+                                    <Link key={item.href} href={item.href}
+                                        onClick={() => { setShowWelcome(false); localStorage.setItem('nexus_welcome_dismissed', '1'); }}
+                                        className="flex items-start gap-3 p-3 rounded-xl bg-slate-900/60 border border-slate-700 hover:border-sky-500/40 transition-colors">
+                                        <span className="text-2xl flex-shrink-0">{item.icon}</span>
+                                        <div>
+                                            <p className="font-semibold text-white text-sm">{item.title}</p>
+                                            <p className="text-xs text-slate-400">{item.desc}</p>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                            <button onClick={() => { setShowWelcome(false); localStorage.setItem('nexus_welcome_dismissed', '1'); }}
+                                className="w-full py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-white text-sm font-semibold transition-colors">
+                                Got it, let&apos;s go!
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* #13/#17 — No Unit Assigned Warning Banner */}
+            {!loading && noUnit && (
+                <div className="p-4 md:p-6 bg-amber-500/10 border-2 border-amber-500/40 rounded-2xl flex items-start gap-4 animate-in fade-in duration-300">
+                    <div className="p-2 bg-amber-500/20 rounded-xl flex-shrink-0">
+                        <AlertTriangle className="w-6 h-6 text-amber-400" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-amber-400 text-base">No Unit Assigned to Your Account</h3>
+                        <p className="text-sm text-amber-200/70 mt-1 leading-relaxed">
+                            Your account is not linked to any property unit. You won&apos;t be able to invite visitors or view access logs until a unit is assigned.
+                            Please contact your system administrator or{' '}
+                            <a href="https://wa.me/27629558559" target="_blank" rel="noopener noreferrer" className="underline text-amber-300 hover:text-white transition-colors">
+                                GSS Support on WhatsApp
+                            </a>.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Emergency Banners */}
             {activeEmergencies.length > 0 && (
@@ -269,7 +342,7 @@ export default function OwnerDashboardPage() {
                         <p className="text-sm text-slate-300 mb-6 relative z-10">
                             Upgrade your business security with AJAX Alarms and Hikvision CCTV systems.
                         </p>
-                        <a href="https://www.globalsecuritysolutions.co.za/" target="_blank" rel="noreferrer"
+                        <a href="https://www.globalsecuritysolutions.co.za/" target="_blank" rel="noopener noreferrer"
                             className="block w-full text-center py-2.5 bg-indigo-500 hover:bg-indigo-400 text-white font-medium rounded-lg transition-all shadow-[0_4px_14px_0_rgba(99,102,241,0.39)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.23)] hover:-translate-y-0.5 relative z-10">
                             Request a Quote
                         </a>
