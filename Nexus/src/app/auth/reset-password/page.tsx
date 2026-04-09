@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
@@ -28,33 +28,57 @@ function ResetPasswordForm() {
     const [error, setError] = useState<string | null>(null);
     const [linkExpired, setLinkExpired] = useState(false); // #7
     const [done, setDone] = useState(false);
+    const [sessionReady, setSessionReady] = useState(false); // Wait for Supabase to process hash tokens
     const router = useRouter();
-    const searchParams = useSearchParams();
     const supabase = createClient();
 
-    // Supabase puts the tokens in the URL hash — exchange them on mount
+    // Listen for the PASSWORD_RECOVERY event from Supabase.
+    // When a user clicks the reset link, Supabase puts tokens in the URL hash (#access_token=...).
+    // The @supabase/ssr client auto-detects these and fires PASSWORD_RECOVERY once the session is set.
     useEffect(() => {
-        const code = searchParams.get("code");
-        if (code) {
-            // CRITICAL: Sign out first to prevent session clashing if an admin is testing the link
-            supabase.auth.signOut().then(() => {
-                supabase.auth.exchangeCodeForSession(code).catch(() => {
-                    setError("This link has expired or is invalid. Please request a new one.");
-                    setLinkExpired(true); // #7
-                });
-            });
-        }
-
-        // Also check for errors in the hash (fragment)
+        // First check for error fragments in the hash (e.g. expired links)
         const hash = window.location.hash;
         if (hash.includes("error_description=")) {
             const desc = new URLSearchParams(hash.substring(1)).get("error_description");
             if (desc) {
                 setError(desc.replace(/\+/g, " "));
                 setLinkExpired(true); // #7
+                return; // Don't bother listening for auth events
             }
         }
-    }, [searchParams, supabase]);
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+            if (event === "PASSWORD_RECOVERY") {
+                // Session is now set — user can update their password
+                setSessionReady(true);
+            }
+        });
+
+        // Also check if a session already exists (e.g. page refresh after hash was consumed)
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                setSessionReady(true);
+            }
+        });
+
+        // Timeout: if no session after 5 seconds, the link is likely expired/invalid
+        const timeout = setTimeout(() => {
+            if (!linkExpired) {
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    if (!session) {
+                        setError("This link has expired or is invalid. Please request a new one.");
+                        setLinkExpired(true);
+                    }
+                });
+            }
+        }, 5000);
+
+        return () => {
+            subscription.unsubscribe();
+            clearTimeout(timeout);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const strength = getPasswordStrength(password); // #5
 
@@ -151,6 +175,12 @@ function ResetPasswordForm() {
                                         Click the link above → enter your email on the login page → click &quot;Forgot password?&quot;
                                     </p>
                                 </div>
+                            </div>
+                        ) : !sessionReady ? (
+                            /* Loading state while waiting for Supabase to process the tokens */
+                            <div className="space-y-3 text-center py-6">
+                                <div className="w-8 h-8 border-2 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mx-auto" />
+                                <p className="text-sm text-slate-400">Verifying your reset link…</p>
                             </div>
                         ) : (
                             <>

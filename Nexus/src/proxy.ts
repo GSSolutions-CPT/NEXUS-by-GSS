@@ -1,125 +1,104 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
-import { Redis } from '@upstash/redis'
-import { Ratelimit } from '@upstash/ratelimit'
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
 
-// Edge-compatible rate limiter for auth routes (5 req/min per IP)
-const authRatelimit = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
-    ? new Ratelimit({
-        redis: new Redis({
-            url: process.env.KV_REST_API_URL,
-            token: process.env.KV_REST_API_TOKEN,
-        }),
-        limiter: Ratelimit.slidingWindow(5, '1 m'),
-        analytics: false,
-    })
-    : null;
+// ── Role → allowed path prefixes ─────────────────────────────────────────────
+const ROLE_PATHS: Record<string, string> = {
+    SuperAdmin: "/admin",
+    GroupAdmin: "/owner",
+    Guard: "/guard",
+};
 
-const ROLE_HOME: Record<string, string> = {
-    SuperAdmin: '/admin',
-    GroupAdmin: '/owner',
-    Guard: '/guard',
-}
+// Paths that are public (no auth required)
+const PUBLIC_PATHS = ["/", "/auth", "/guest", "/privacy", "/terms"];
 
-export default async function proxy(request: NextRequest) {
-    const { pathname } = request.nextUrl
+export async function middleware(request: NextRequest) {
+    const { pathname } = request.nextUrl;
 
-    // API routes and static assets handle their own auth
-    if (pathname.startsWith('/api/') || pathname.startsWith('/guest')) {
-        return NextResponse.next({ request })
+    // Allow public paths and all API routes (API routes do their own auth)
+    if (
+        pathname.startsWith("/api/") ||
+        pathname.startsWith("/_next/") ||
+        pathname.startsWith("/favicon") ||
+        pathname.startsWith("/logo") ||
+        pathname.startsWith("/icons") ||
+        pathname.startsWith("/manifest") ||
+        PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))
+    ) {
+        return NextResponse.next();
     }
 
-    // Rate-limit auth-related routes to prevent brute-force attacks
-    if (authRatelimit && (pathname.startsWith('/auth') || (pathname === '/' && request.method === 'POST'))) {
-        const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
-        const { success } = await authRatelimit.limit(`auth_rate_${ip}`)
-        if (!success) {
-            return new NextResponse("Too Many Requests", { status: 429 })
-        }
-    }
-
-    let response = NextResponse.next({
-        request: { headers: request.headers },
-    })
-
+    // Build a Supabase client that reads/writes cookies on the request
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
             cookies: {
-                get(name: string) {
-                    return request.cookies.get(name)?.value
+                getAll() {
+                    return request.cookies.getAll();
                 },
-                set(name: string, value: string, options: CookieOptions) {
-                    request.cookies.set({ name, value, ...options })
-                    response = NextResponse.next({ request: { headers: request.headers } })
-                    response.cookies.set({ name, value, ...options })
-                },
-                remove(name: string, options: CookieOptions) {
-                    request.cookies.set({ name, value: '', ...options })
-                    response = NextResponse.next({ request: { headers: request.headers } })
-                    response.cookies.set({ name, value: '', ...options })
+                setAll(cookiesToSet) {
+                    // We're only reading, but the client needs this callback
+                    cookiesToSet.forEach(({ name, value, options }) => {
+                        request.cookies.set(name, value);
+                    });
                 },
             },
         }
-    )
+    );
 
-    // Refresh session on every request (keeps tokens fresh)
-    const { data: { user } } = await supabase.auth.getUser()
+    // Get the current session
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // Helper: resolve role from JWT claims first, then fall back to profiles table
-    const resolveRole = async (): Promise<string> => {
-        if (!user) return ''
-        const jwtRole = user.app_metadata?.user_role as string
-        if (jwtRole) return jwtRole
-        // Fallback: query the profiles table (source of truth)
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single()
-        return profile?.role || ''
-    }
-
-    // — Root (login page) — if already logged in, redirect to dashboard
-    if (pathname === '/') {
-        if (user) {
-            const role = await resolveRole()
-            const dest = ROLE_HOME[role]
-            if (dest) return NextResponse.redirect(new URL(dest, request.url))
-        }
-        return response
-    }
-
-    // — auth/reset-password — always public
-    if (pathname.startsWith('/auth/')) {
-        return response
-    }
-
-    // — Protected routes — unauthenticated users go to login
     if (!user) {
-        return NextResponse.redirect(new URL('/', request.url))
+        // Not authenticated → redirect to login
+        const loginUrl = request.nextUrl.clone();
+        loginUrl.pathname = "/";
+        return NextResponse.redirect(loginUrl);
     }
 
-    // — Resolve role (JWT claim → profiles table fallback)
-    const role = await resolveRole()
+    // Fetch the user's role from profiles
+    const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
 
-    // Block cross-role access (e.g., Guard trying to reach /admin)
-    if (pathname.startsWith('/admin') && role !== 'SuperAdmin') {
-        return NextResponse.redirect(new URL(ROLE_HOME[role] || '/', request.url))
-    }
-    if (pathname.startsWith('/owner') && role !== 'GroupAdmin' && role !== 'SuperAdmin') {
-        return NextResponse.redirect(new URL(ROLE_HOME[role] || '/', request.url))
-    }
-    if (pathname.startsWith('/guard') && role !== 'Guard' && role !== 'SuperAdmin') {
-        return NextResponse.redirect(new URL(ROLE_HOME[role] || '/', request.url))
+    const role = profile?.role as string | undefined;
+
+    if (!role || !ROLE_PATHS[role]) {
+        // Unknown or missing role → send back to login
+        const loginUrl = request.nextUrl.clone();
+        loginUrl.pathname = "/";
+        return NextResponse.redirect(loginUrl);
     }
 
-    return response
+    const allowedPrefix = ROLE_PATHS[role];
+
+    // Check if the user is trying to access a path they're not allowed to
+    const isAdminPath = pathname.startsWith("/admin");
+    const isOwnerPath = pathname.startsWith("/owner");
+    const isGuardPath = pathname.startsWith("/guard");
+
+    const accessingProtectedPath = isAdminPath || isOwnerPath || isGuardPath;
+
+    if (accessingProtectedPath && !pathname.startsWith(allowedPrefix)) {
+        // Wrong role for this path → redirect to their own dashboard
+        const correctUrl = request.nextUrl.clone();
+        correctUrl.pathname = allowedPrefix;
+        return NextResponse.redirect(correctUrl);
+    }
+
+    return NextResponse.next();
 }
 
 export const config = {
     matcher: [
-        '/((?!_next/static|_next/image|favicon.ico|logo|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        /*
+         * Match all request paths EXCEPT for the ones starting with:
+         * - _next/static (static files)
+         * - _next/image (image optimization files)
+         * - favicon.ico (favicon file)
+         */
+        "/((?!_next/static|_next/image|favicon.ico).*)",
     ],
-}
+};
