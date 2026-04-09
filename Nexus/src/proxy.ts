@@ -11,7 +11,7 @@ const ROLE_PATHS: Record<string, string> = {
 // Paths that are public (no auth required)
 const PUBLIC_PATHS = ["/", "/auth", "/guest", "/privacy", "/terms"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // Allow public paths and all API routes (API routes do their own auth)

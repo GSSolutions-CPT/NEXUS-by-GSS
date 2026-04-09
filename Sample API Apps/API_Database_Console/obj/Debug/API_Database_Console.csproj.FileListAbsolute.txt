@@ -37,3 +37,6 @@ C:\tools\PortalAPI\V5API\Sample API Apps\API_Database_Console\bin\Debug\PortalAP
 C:\tools\PortalAPI\V5API\Sample API Apps\API_Database_Console\bin\Debug\crypt.pdb
 C:\tools\PortalAPI\V5API\Sample API Apps\API_Database_Console\bin\Debug\PortalAPI.pdb
 C:\tools\PortalAPI\V5API\Sample API Apps\API_Database_Console\obj\Debug\API_Database_Console.exe.config
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\API_Database_Console\obj\Debug\API_Database_Console.exe
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\API_Database_Console\obj\Debug\API_Database_Console.pdb
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\API_Database_Console\obj\Debug\API_Database_Console.csproj.AssemblyReference.cache

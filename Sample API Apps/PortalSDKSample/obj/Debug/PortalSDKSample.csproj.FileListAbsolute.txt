@@ -35,3 +35,15 @@ C:\tools\PortalAPI\V5API\Sample API Apps\PortalSDKSample\obj\Debug\PortalSD.A06E
 C:\tools\PortalAPI\V5API\Sample API Apps\PortalSDKSample\obj\Debug\PortalSDKSample.exe
 C:\tools\PortalAPI\V5API\Sample API Apps\PortalSDKSample\obj\Debug\PortalSDKSample.pdb
 C:\tools\PortalAPI\V5API\Sample API Apps\PortalSDKSample\obj\Debug\PortalSDKSample.exe.config
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\PortalSDKSample\obj\Debug\PortalSDKSample.exe
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\PortalSDKSample\obj\Debug\PortalSDKSample.pdb
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\PortalSDKSample\bin\Debug\PortalSDKSample.exe.config
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\PortalSDKSample\bin\Debug\PortalSDKSample.exe
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\PortalSDKSample\bin\Debug\PortalSDKSample.pdb
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\PortalSDKSample\bin\Debug\BouncyCastle.Crypto.xml
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\PortalSDKSample\obj\Debug\PortalSDKSample.csproj.AssemblyReference.cache
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\PortalSDKSample\obj\Debug\PortalSDKSample.Form1.resources
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\PortalSDKSample\obj\Debug\PortalSDKSample.Properties.Resources.resources
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\PortalSDKSample\obj\Debug\PortalSDKSample.csproj.GenerateResource.cache
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\PortalSDKSample\obj\Debug\PortalSDKSample.csproj.CoreCompileInputs.cache
+C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\PortalSDKSample\obj\Debug\PortalSD.A06EF59A.Up2Date
