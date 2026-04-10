@@ -38,8 +38,9 @@ export async function proxy(request: NextRequest) {
                 },
                 setAll(cookiesToSet) {
                     // We're only reading, but the client needs this callback
-                    cookiesToSet.forEach(({ name, value, options }) => {
+                    cookiesToSet.forEach(({ name, value, options: _options }) => {
                         request.cookies.set(name, value);
+
                     });
                 },
             },

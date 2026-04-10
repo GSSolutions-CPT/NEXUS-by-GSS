@@ -1,5 +1,4 @@
 import { createClient as createServerClient } from '@/utils/supabase/server';
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 // GET: Fetch persistent notifications

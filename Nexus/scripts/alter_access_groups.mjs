@@ -16,20 +16,6 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Use the Supabase REST SQL endpoint (via rpc or direct fetch)
-async function runSQL(sql) {
-  const res = await fetch(`${supabaseUrl}/rest/v1/rpc/`, {
-    method: 'POST',
-    headers: {
-      'apikey': supabaseKey,
-      'Authorization': `Bearer ${supabaseKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ query: sql }),
-  });
-  return res;
-}
-
 async function run() {
   console.log("Adding missing columns to access_groups table...");
 

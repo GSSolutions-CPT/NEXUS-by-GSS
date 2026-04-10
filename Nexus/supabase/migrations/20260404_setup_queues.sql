@@ -13,7 +13,9 @@ SELECT pgmq.create('hardware_commands');
 -- 3. Create a processor function
 -- This function pulls the oldest messages from the queue and sends them to your C# Bridge
 CREATE OR REPLACE FUNCTION process_hardware_queue()
-RETURNS void AS $$
+RETURNS void
+SET search_path = '' 
+AS $$
 DECLARE
     msg RECORD;
     req_id BIGINT;

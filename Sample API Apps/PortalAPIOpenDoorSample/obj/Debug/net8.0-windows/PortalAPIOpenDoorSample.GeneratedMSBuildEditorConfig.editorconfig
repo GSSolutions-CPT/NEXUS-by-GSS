@@ -14,6 +14,6 @@ build_property.PlatformNeutralAssembly =
 build_property.EnforceExtendedAnalyzerRules = 
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = PortalAPIOpenDoorSample
-build_property.ProjectDir = C:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\PortalAPIOpenDoorSample\
+build_property.ProjectDir = c:\Users\User\OneDrive\Desktop\Website\V5API\Sample API Apps\PortalAPIOpenDoorSample\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
