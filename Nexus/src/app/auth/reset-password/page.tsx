@@ -169,10 +169,10 @@ function ResetPasswordForm() {
                                         href="/"
                                         className="flex items-center justify-center gap-2 w-full h-11 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-semibold transition-all text-sm"
                                     >
-                                        Request New Reset Link
+                                        Log in or Request Reset Link
                                     </Link>
                                     <p className="text-[11px] text-slate-500">
-                                        Click the link above → enter your email on the login page → click &quot;Forgot password?&quot;
+                                        Head to the Portal Gateway above to log in or request a new link
                                     </p>
                                 </div>
                             </div>
@@ -233,7 +233,7 @@ function ResetPasswordForm() {
 
                                     <Link href="/" className="flex items-center justify-center gap-1.5 w-full text-xs text-slate-400 hover:text-slate-200 transition-colors pt-1 group">
                                         <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
-                                        Back to login
+                                        Back to Portal Gateway
                                     </Link>
                                 </form>
                             </>
