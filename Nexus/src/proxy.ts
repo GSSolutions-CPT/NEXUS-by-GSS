@@ -1,105 +1,95 @@
-import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
-
-// ── Role → allowed path prefixes ─────────────────────────────────────────────
-const ROLE_PATHS: Record<string, string> = {
-    SuperAdmin: "/admin",
-    GroupAdmin: "/owner",
-    Guard: "/guard",
-};
-
-// Paths that are public (no auth required)
-const PUBLIC_PATHS = ["/", "/auth", "/guest", "/privacy", "/terms"];
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
-    const { pathname } = request.nextUrl;
+    let supabaseResponse = NextResponse.next({
+        request: {
+            headers: request.headers,
+        },
+    })
 
-    // Allow public paths and all API routes (API routes do their own auth)
-    if (
-        pathname.startsWith("/api/") ||
-        pathname.startsWith("/_next/") ||
-        pathname.startsWith("/favicon") ||
-        pathname.startsWith("/logo") ||
-        pathname.startsWith("/icons") ||
-        pathname.startsWith("/manifest") ||
-        PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))
-    ) {
-        return NextResponse.next();
-    }
-
-    // Build a Supabase client that reads/writes cookies on the request
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
             cookies: {
                 getAll() {
-                    return request.cookies.getAll();
+                    return request.cookies.getAll()
                 },
                 setAll(cookiesToSet) {
-                    // We're only reading, but the client needs this callback
-                    cookiesToSet.forEach(({ name, value, options: _options }) => {
-                        request.cookies.set(name, value);
-
-                    });
+                    cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+                    supabaseResponse = NextResponse.next({
+                        request,
+                    })
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        supabaseResponse.cookies.set(name, value, options)
+                    )
                 },
             },
         }
-    );
+    )
 
-    // Get the current session
-    const { data: { user } } = await supabase.auth.getUser();
+    // Verify session
+    const { data: { user } } = await supabase.auth.getUser()
 
+    // Determine path
+    const url = request.nextUrl.clone()
+    const path = url.pathname
+
+    // We only want to protect /admin, /owner, and /guard paths (excluding auth/login pages inside those, if any)
+    const isAdminRoute = path.startsWith('/admin')
+    const isOwnerRoute = path.startsWith('/owner')
+    const isGuardRoute = path.startsWith('/guard')
+
+    if (!isAdminRoute && !isOwnerRoute && !isGuardRoute) {
+        return supabaseResponse
+    }
+
+    // Unauthenticated Redirects
     if (!user) {
-        // Not authenticated → redirect to login
-        const loginUrl = request.nextUrl.clone();
-        loginUrl.pathname = "/";
-        return NextResponse.redirect(loginUrl);
+        if (isAdminRoute) url.pathname = '/login/admin'
+        else if (isOwnerRoute) url.pathname = '/login/owner'
+        else if (isGuardRoute) url.pathname = '/login/guard'
+        
+        return NextResponse.redirect(url)
     }
 
-    // Fetch the user's role from profiles
+    // Authenticated Role Checks
     const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
 
-    const role = profile?.role as string | undefined;
+    const role = profile?.role
 
-    if (!role || !ROLE_PATHS[role]) {
-        // Unknown or missing role → send back to login
-        const loginUrl = request.nextUrl.clone();
-        loginUrl.pathname = "/";
-        return NextResponse.redirect(loginUrl);
+    if (isAdminRoute && role !== 'SuperAdmin') {
+        url.pathname = '/'
+        return NextResponse.redirect(url)
     }
 
-    const allowedPrefix = ROLE_PATHS[role];
-
-    // Check if the user is trying to access a path they're not allowed to
-    const isAdminPath = pathname.startsWith("/admin");
-    const isOwnerPath = pathname.startsWith("/owner");
-    const isGuardPath = pathname.startsWith("/guard");
-
-    const accessingProtectedPath = isAdminPath || isOwnerPath || isGuardPath;
-
-    if (accessingProtectedPath && !pathname.startsWith(allowedPrefix)) {
-        // Wrong role for this path → redirect to their own dashboard
-        const correctUrl = request.nextUrl.clone();
-        correctUrl.pathname = allowedPrefix;
-        return NextResponse.redirect(correctUrl);
+    if (isOwnerRoute && role !== 'GroupAdmin' && role !== 'SuperAdmin') {
+        url.pathname = '/'
+        return NextResponse.redirect(url)
     }
 
-    return NextResponse.next();
+    if (isGuardRoute && role !== 'Guard' && role !== 'SuperAdmin') {
+        url.pathname = '/'
+        return NextResponse.redirect(url)
+    }
+
+    return supabaseResponse
 }
 
 export const config = {
     matcher: [
         /*
-         * Match all request paths EXCEPT for the ones starting with:
+         * Match all request paths except for the ones starting with:
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
+         * Feel free to modify this pattern to include more paths.
          */
-        "/((?!_next/static|_next/image|favicon.ico).*)",
+        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
-};
+}
