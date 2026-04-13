@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
+
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
-import { Eye, EyeOff, Home, Mail, Lock, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Eye, Home, ArrowLeft, CheckCircle2 } from "lucide-react";
 
 type Mode = "login" | "forgot" | "forgot-sent";
 const MAX_ATTEMPTS = 5;

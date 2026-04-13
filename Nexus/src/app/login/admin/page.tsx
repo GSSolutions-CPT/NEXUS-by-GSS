@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
@@ -16,7 +16,7 @@ export default function AdminLogin() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
-    const [rememberMe, setRememberMe] = useState(false);
+
     const [loading, setLoading] = useState(false);
     const [redirecting, setRedirecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -231,7 +231,7 @@ export default function AdminLogin() {
                                     </div>
                                     <div>
                                         <h2 className="text-lg font-bold text-white mb-2">Link Sent</h2>
-                                        <p className="text-sm text-slate-400">We've sent an admin recovery link to <br/><span className="text-amber-400">{email}</span></p>
+                                        <p className="text-sm text-slate-400">We&apos;ve sent an admin recovery link to <br/><span className="text-amber-400">{email}</span></p>
                                     </div>
                                     <button onClick={() => setMode("login")} className="w-full h-12 rounded-xl bg-slate-800 text-white font-medium">Return to Login</button>
                                 </div>

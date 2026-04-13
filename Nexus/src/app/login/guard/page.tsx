@@ -1,28 +1,20 @@
 "use client";
 
-import Image from "next/image";
-import { useState, useEffect, useRef } from "react";
+
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
-import { Eye, EyeOff, ShieldCheck, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Eye, ShieldCheck, ArrowLeft } from "lucide-react";
 
-type Mode = "login" | "forgot" | "forgot-sent";
-const MAX_ATTEMPTS = 5;
-const LOCKOUT_SECONDS = 60;
+
 
 export default function GuardLogin() {
-    const [mode, setMode] = useState<Mode>("login");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [redirecting, setRedirecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    const [attempts, setAttempts] = useState(0);
-    const [lockoutRemaining, setLockoutRemaining] = useState(0);
-    const lockoutTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const router = useRouter();
     const supabase = createClient();
@@ -35,7 +27,6 @@ export default function GuardLogin() {
             const { data: profile } = await supabase.from("profiles").select("role").eq("id", session.user.id).single();
 
             if (profile?.role === "Guard" || profile?.role === "SuperAdmin") {
-                setRedirecting(true);
                 router.replace("/guard");
             } else {
                 await supabase.auth.signOut();
