@@ -67,6 +67,7 @@ export default function AdminDashboardPage() {
         }
     }, []);
 
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         const init = async () => {
             fetchStats();
@@ -74,6 +75,7 @@ export default function AdminDashboardPage() {
         };
         init();
     }, [fetchStats, checkBridge]);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     const fmt = (d: string) => new Date(d).toLocaleString("en-ZA", { dateStyle: "short", timeStyle: "short" });
 
