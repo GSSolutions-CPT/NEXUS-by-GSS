@@ -25,6 +25,8 @@ export default function AdminDashboardPage() {
     const [recentLogs, setRecentLogs] = useState<RecentLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [bridgeStatus, setBridgeStatus] = useState<"checking" | "online" | "offline">("checking");
+    const [broadcastMsg, setBroadcastMsg] = useState("");
+    const [isBroadcasting, setIsBroadcasting] = useState(false);
     const supabase = useMemo(() => createClient(), []);
 
     const fetchStats = useCallback(async () => {
@@ -76,6 +78,26 @@ export default function AdminDashboardPage() {
         init();
     }, [fetchStats, checkBridge]);
     /* eslint-enable react-hooks/set-state-in-effect */
+
+    const handleBroadcast = async () => {
+        if (!broadcastMsg.trim()) return;
+        setIsBroadcasting(true);
+        try {
+            const { error } = await supabase.from("announcements").insert({
+                title: "Admin Broadcast",
+                content: broadcastMsg.trim(),
+                type: "info"
+            });
+            if (error) throw error;
+            setBroadcastMsg("");
+            // Optional: Add a brief success confirmation Toast here if desired
+        } catch (err) {
+            console.error("Failed to broadcast:", err);
+        } finally {
+            setIsBroadcasting(false);
+        }
+    };
+
 
     const fmt = (d: string) => new Date(d).toLocaleString("en-ZA", { dateStyle: "short", timeStyle: "short" });
 
@@ -224,10 +246,19 @@ export default function AdminDashboardPage() {
                         <div className="absolute top-0 right-0 w-48 h-48 bg-sky-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-sky-500/20 transition-all duration-700" />
                         <h3 className="text-xl font-black text-white mb-2 relative z-10 tracking-tight">Broadcast Center</h3>
                         <p className="text-sm font-medium text-slate-400 mb-6 relative z-10">Send priority notifications to all unit dashboards.</p>
-                        <textarea className="w-full h-32 p-4 rounded-xl bg-slate-950/80 border border-slate-700/50 text-white placeholder:text-slate-600 text-sm font-medium focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500/50 resize-none transition-all relative z-10"
-                            placeholder="Type important community announcement here..." />
-                        <button className="w-full mt-4 py-3 bg-sky-500 hover:bg-sky-400 text-white font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_4px_20px_rgba(14,165,233,0.3)] hover:shadow-[0_8px_30px_rgba(14,165,233,0.5)] active:scale-95 relative z-10 text-sm">
-                            Publish Broadcast
+                        <textarea
+                            value={broadcastMsg}
+                            onChange={(e) => setBroadcastMsg(e.target.value)}
+                            disabled={isBroadcasting}
+                            className="w-full h-32 p-4 rounded-xl bg-slate-950/80 border border-slate-700/50 text-white placeholder:text-slate-600 text-sm font-medium focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500/50 resize-none transition-all relative z-10 disabled:opacity-50"
+                            placeholder="Type important community announcement here..." 
+                        />
+                        <button 
+                            onClick={handleBroadcast}
+                            disabled={isBroadcasting || !broadcastMsg.trim()}
+                            className="w-full mt-4 py-3 bg-sky-500 hover:bg-sky-400 text-white font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_4px_20px_rgba(14,165,233,0.3)] hover:shadow-[0_8px_30px_rgba(14,165,233,0.5)] active:scale-95 relative z-10 text-sm disabled:opacity-50 disabled:active:scale-100 disabled:hover:shadow-[0_4px_20px_rgba(14,165,233,0.3)]"
+                        >
+                            {isBroadcasting ? "Publishing..." : "Publish Broadcast"}
                         </button>
                     </div>
 
