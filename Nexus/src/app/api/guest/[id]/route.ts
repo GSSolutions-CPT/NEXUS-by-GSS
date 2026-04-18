@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 // GET /api/guest/[id] — Fetch visitor pass with limited PII for public guest page
@@ -10,7 +10,13 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
-        const supabase = await createClient();
+        
+        // Use the service role key to bypass RLS, because guests viewing passes do not have an authenticated session.
+        // We only fetch based on the hard-to-guess UUID.
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
 
         // Validate the ID is a UUID format to prevent injection
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
