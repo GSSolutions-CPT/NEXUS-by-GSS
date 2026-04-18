@@ -29,54 +29,35 @@ namespace ImproBridgeAPI.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Visitor Pull Sync Worker is starting.");
+            _logger.LogInformation("Visitor Pull Sync Worker is starting. Using 30-second HTTP polling.");
 
-            try 
-            {
-                var supabaseUrl = _configuration["SupabaseUrl"];
-                var serviceRoleKey = _configuration["SupabaseServiceRoleKey"];
-                
-                var options = new Supabase.SupabaseOptions { AutoConnectRealtime = true };
-                var supabase = new Supabase.Client(supabaseUrl!, serviceRoleKey, options);
-                await supabase.InitializeAsync();
+            // Small startup delay to let the app fully initialize
+            await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
 
-                var channel = supabase.Realtime.Channel("realtime", "public", "visitors");
-                channel.AddPostgresChangeHandler(Supabase.Realtime.PostgresChanges.PostgresChangesOptions.ListenType.All, (sender, args) => 
-                {
-                    _logger.LogInformation("Realtime EVENT: Visitor table change detected. Instantly triggering sync...");
-                    _ = ProcessPendingVisitorsAsync(stoppingToken);
-                });
-                
-                await channel.Subscribe();
-                _logger.LogInformation("Subscribed to Supabase Realtime for instant visitor sync.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to initialize Supabase Realtime. Falling back to 5-minute polling only.");
-            }
-
-            // Fallback polling loop with exponential backoff on failures
+            // Polling loop — check for pending visitors every 30 seconds
             int consecutiveFailures = 0;
-            const int baseDelayMinutes = 5;
-            const int maxDelayMinutes = 30;
+            const int baseDelaySeconds = 30;
+            const int maxDelaySeconds = 300;
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
+                    _logger.LogWarning("[VISITOR-POLL] Starting poll cycle...");
                     await ProcessPendingVisitorsAsync(stoppingToken);
-                    consecutiveFailures = 0; // Reset on success
+                    _logger.LogWarning("[VISITOR-POLL] Poll cycle complete. Next poll in {Delay}s.", baseDelaySeconds);
+                    consecutiveFailures = 0;
                 }
                 catch (Exception ex)
                 {
                     consecutiveFailures++;
-                    var backoffMinutes = Math.Min(baseDelayMinutes * (int)Math.Pow(2, consecutiveFailures - 1), maxDelayMinutes);
-                    _logger.LogError(ex, "Polling failed (attempt {Attempt}). Next retry in {Delay} minutes.", consecutiveFailures, backoffMinutes);
-                    await Task.Delay(TimeSpan.FromMinutes(backoffMinutes), stoppingToken);
-                    continue; // Skip the normal delay below
+                    var backoffSeconds = Math.Min(baseDelaySeconds * (int)Math.Pow(2, consecutiveFailures - 1), maxDelaySeconds);
+                    _logger.LogError(ex, "[VISITOR-POLL] Polling FAILED (attempt {Attempt}). Next retry in {Delay}s.", consecutiveFailures, backoffSeconds);
+                    await Task.Delay(TimeSpan.FromSeconds(backoffSeconds), stoppingToken);
+                    continue;
                 }
 
-                await Task.Delay(TimeSpan.FromMinutes(baseDelayMinutes), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(baseDelaySeconds), stoppingToken);
             }
 
             _logger.LogInformation("Visitor Pull Sync Worker is stopping.");
@@ -84,22 +65,23 @@ namespace ImproBridgeAPI.Services
 
         private async Task ProcessPendingVisitorsAsync(CancellationToken stoppingToken)
         {
-            // SECURED: Calling Supabase RPC which uses Postgres 'SELECT FOR UPDATE SKIP LOCKED'
-            // This guarantees that if multiple Bridge workers are running, they will not grab the same visitors.
+            _logger.LogWarning("[VISITOR-POLL] Calling Supabase RPC get_pending_visitors_for_sync...");
             var rpcUrl = "/rest/v1/rpc/get_pending_visitors_for_sync";
             var response = await _httpClient.PostAsync(rpcUrl, null, stoppingToken);
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning($"Failed to call RPC get_pending_visitors_for_sync. Status: {response.StatusCode}");
+                _logger.LogWarning($"[VISITOR-POLL] RPC FAILED. Status: {response.StatusCode}");
                 return;
             }
 
             var content = await response.Content.ReadAsStringAsync(stoppingToken);
+            _logger.LogWarning("[VISITOR-POLL] RPC response: {Content}", content?.Substring(0, Math.Min(content?.Length ?? 0, 500)));
             var pendingVisitors = JsonSerializer.Deserialize<List<PendingVisitor>>(content);
 
             if (pendingVisitors == null || !pendingVisitors.Any())
             {
+                _logger.LogWarning("[VISITOR-POLL] No pending visitors found. Sleeping.");
                 return; 
             }
 

@@ -25,6 +25,10 @@
       <HintPath>..\dlls\crypt.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="BouncyCastle.Crypto">
+      <HintPath>..\dlls\BouncyCastle.Crypto.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
   </ItemGroup>
 
 </Project>

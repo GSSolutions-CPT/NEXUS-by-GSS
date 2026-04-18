@@ -48,8 +48,8 @@ namespace ImproBridgeAPI.Services
 
             // Fallback polling loop with exponential backoff on failures
             int consecutiveFailures = 0;
-            const int baseDelaySeconds = 30;
-            const int maxDelaySeconds = 300; // 5 minutes cap
+            const int baseDelaySeconds = 120;  // 2 minutes between polls
+            const int maxDelaySeconds = 600;   // 10 minutes cap on backoff
 
             while (!stoppingToken.IsCancellationRequested)
             {
