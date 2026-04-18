@@ -214,16 +214,39 @@ namespace ImproBridgeAPI.Services
                     m.setAttribute("mstStartDate", request.StartDateTime.Substring(0, 8));
                 }
 
-                // Save the Master record
-                master savedMaster = api.saveOrUpdate(m);
-
-                if (savedMaster == null || string.IsNullOrEmpty(savedMaster.id))
+                // Check if a Master with this PIN already exists (handles retries)
+                master savedMaster = null;
+                try
                 {
-                    _logger.LogError("[Impro SDK] saveOrUpdate returned null or empty Master ID.");
-                    return false;
+                    var existingMasters = api.findByHsql($"from Master where idnumber = '{request.PinCode}'", 1);
+                    if (existingMasters != null && existingMasters.Length > 0)
+                    {
+                        savedMaster = (master)existingMasters[0];
+                        _logger.LogInformation("[Impro SDK] Found existing Master ID: {MasterId} for PIN: {Pin}", savedMaster.id, request.PinCode);
+                    }
+                }
+                catch (Exception lookupEx)
+                {
+                    _logger.LogWarning(lookupEx, "[Impro SDK] Master lookup failed, will try to create new.");
                 }
 
-                _logger.LogInformation("[Impro SDK] Master record created with ID: {MasterId}", savedMaster.id);
+                if (savedMaster == null)
+                {
+                    // Save the Master record
+                    savedMaster = api.saveOrUpdate(m);
+
+                    if (savedMaster == null || string.IsNullOrEmpty(savedMaster.id))
+                    {
+                        _logger.LogError("[Impro SDK] saveOrUpdate returned null or empty Master ID.");
+                        return false;
+                    }
+
+                    _logger.LogInformation("[Impro SDK] Master record created with ID: {MasterId}", savedMaster.id);
+                }
+                else
+                {
+                    _logger.LogInformation("[Impro SDK] Reusing existing Master ID: {MasterId}", savedMaster.id);
+                }
 
                 // Now create the Tag linked to this Master
                 // We build a tag with the PIN code as the tagCode
@@ -236,30 +259,42 @@ namespace ImproBridgeAPI.Services
                 if (!string.IsNullOrEmpty(request.ExpiryDateTime) && request.ExpiryDateTime.Length >= 8)
                 {
                     t.expiryDate = request.ExpiryDateTime.Substring(0, 8);
-                    t.expiryTime = "235959"; // Always end-of-day to avoid Portal "cannot exceed 11:59 PM" error
+                    t.expiryTime = "2359"; // End-of-day (HHmm format) to avoid Portal validation error
                 }
 
                 // Query available tag types from the Portal and use the first one
                 tagType tt = new tagType();
-                try
+                string[] tagTypeQueries = { "from TagType", "from tagType", "from Tagtype" };
+                bool tagTypeFound = false;
+                foreach (var ttQuery in tagTypeQueries)
                 {
-                    baseDomain[] tagTypes = api.findByHsql("from TagType", 50);
-                    if (tagTypes != null && tagTypes.Length > 0)
+                    try
                     {
-                        var firstType = (tagType)tagTypes[0];
-                        tt.id = firstType.id;
-                        _logger.LogInformation("[Impro SDK] Using tag type: ID={Id}, Name={Name}", firstType.id, firstType.name);
+                        baseDomain[] tagTypes = api.findByHsql(ttQuery, 50);
+                        if (tagTypes != null && tagTypes.Length > 0)
+                        {
+                            // Log all available tag types for debugging
+                            for (int i = 0; i < tagTypes.Length; i++)
+                            {
+                                var ttItem = (tagType)tagTypes[i];
+                                _logger.LogInformation("[Impro SDK] Available TagType[{Index}]: ID={Id}, Name={Name}", i, ttItem.id, ttItem.name);
+                            }
+                            var firstType = (tagType)tagTypes[0];
+                            tt.id = firstType.id;
+                            tagTypeFound = true;
+                            _logger.LogInformation("[Impro SDK] Using tag type: ID={Id}, Name={Name}", firstType.id, firstType.name);
+                        }
+                        break; // Query succeeded (even if empty)
                     }
-                    else
+                    catch (Exception ttEx)
                     {
-                        tt.id = "2"; // Fallback
-                        _logger.LogWarning("[Impro SDK] No tag types found. Using fallback ID 2.");
+                        _logger.LogDebug("[Impro SDK] TagType query '{Query}' failed, trying next...", ttQuery);
                     }
                 }
-                catch (Exception ttEx)
+                if (!tagTypeFound)
                 {
-                    tt.id = "2"; // Fallback if query fails
-                    _logger.LogWarning(ttEx, "[Impro SDK] Failed to query tag types. Using fallback ID 2.");
+                    tt.id = "2"; // Fallback
+                    _logger.LogWarning("[Impro SDK] No tag types found via query. Using fallback ID 2.");
                 }
                 t.tagType = tt;
 
@@ -536,11 +571,32 @@ namespace ImproBridgeAPI.Services
             {
                 _logger.LogDebug("[Impro SDK] Querying transactions since {Since}", since.ToString("yyyy-MM-dd HH:mm:ss"));
 
-                // Query the Transack table for recent events using HQL
-                // The Impro DB stores transactions with timestamps
+                // Try multiple possible entity names — the Impro Portal version determines the correct one
                 string sinceStr = since.ToString("yyyy-MM-dd HH:mm:ss");
-                baseDomain[] txnResults = api.findByHsql(
-                    $"from Transack where timestamp > '{sinceStr}' order by timestamp asc", 500);
+                string[] entityNames = { "TransAck", "Transack", "transAck", "Transaction", "transactLog" };
+                baseDomain[] txnResults = null;
+
+                foreach (var entityName in entityNames)
+                {
+                    try
+                    {
+                        txnResults = api.findByHsql(
+                            $"from {entityName} where timestamp > '{sinceStr}' order by timestamp asc", 500);
+                        _logger.LogInformation("[Impro SDK] Transaction query succeeded with entity: {Entity}", entityName);
+                        break; // Found the right entity name
+                    }
+                    catch (Exception queryEx)
+                    {
+                        _logger.LogDebug("[Impro SDK] Entity '{Entity}' not found, trying next...", entityName);
+                        // Try next entity name
+                    }
+                }
+
+                if (txnResults == null)
+                {
+                    _logger.LogWarning("[Impro SDK] No valid transaction entity found. Audit sync skipped.");
+                    return new List<HardwareTransaction>();
+                }
 
                 if (txnResults == null || txnResults.Length == 0)
                 {
