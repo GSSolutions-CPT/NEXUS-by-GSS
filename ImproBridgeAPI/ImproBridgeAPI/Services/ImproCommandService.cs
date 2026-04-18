@@ -232,16 +232,35 @@ namespace ImproBridgeAPI.Services
                 t.tagCode = request.PinCode;
                 t.tagCodeUntruncated = request.PinCode;
 
-                // Set tag expiry
-                if (!string.IsNullOrEmpty(request.ExpiryDateTime) && request.ExpiryDateTime.Length >= 14)
+                // Set tag expiry — always use end-of-day for the expiry time
+                if (!string.IsNullOrEmpty(request.ExpiryDateTime) && request.ExpiryDateTime.Length >= 8)
                 {
                     t.expiryDate = request.ExpiryDateTime.Substring(0, 8);
-                    t.expiryTime = request.ExpiryDateTime.Substring(8, 6);
+                    t.expiryTime = "235959"; // Always end-of-day to avoid Portal "cannot exceed 11:59 PM" error
                 }
 
-                // Set tag type (id "1" is usually the default PIN/code tag type)
+                // Query available tag types from the Portal and use the first one
                 tagType tt = new tagType();
-                tt.id = "1";
+                try
+                {
+                    baseDomain[] tagTypes = api.findByHsql("from TagType", 50);
+                    if (tagTypes != null && tagTypes.Length > 0)
+                    {
+                        var firstType = (tagType)tagTypes[0];
+                        tt.id = firstType.id;
+                        _logger.LogInformation("[Impro SDK] Using tag type: ID={Id}, Name={Name}", firstType.id, firstType.name);
+                    }
+                    else
+                    {
+                        tt.id = "2"; // Fallback
+                        _logger.LogWarning("[Impro SDK] No tag types found. Using fallback ID 2.");
+                    }
+                }
+                catch (Exception ttEx)
+                {
+                    tt.id = "2"; // Fallback if query fails
+                    _logger.LogWarning(ttEx, "[Impro SDK] Failed to query tag types. Using fallback ID 2.");
+                }
                 t.tagType = tt;
 
                 // Link tag to master
