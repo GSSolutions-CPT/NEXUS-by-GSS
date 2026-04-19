@@ -33,10 +33,32 @@ function ResetPasswordForm() {
     const supabase = createClient();
 
     // Listen for the PASSWORD_RECOVERY event from Supabase.
-    // When a user clicks the reset link, Supabase puts tokens in the URL hash (#access_token=...).
-    // The @supabase/ssr client auto-detects these and fires PASSWORD_RECOVERY once the session is set.
+    // Supports two flows:
+    //   1. PKCE/token_hash: ?token_hash=...&type=recovery in the URL (scanner-proof invite links)
+    //   2. Hash fragment: #access_token=... from Supabase's /auth/v1/verify redirect (legacy/forgot-password)
     useEffect(() => {
-        // First check for error fragments in the hash (e.g. expired links)
+        // ── Flow 1: PKCE token_hash in query string (scanner-proof invite links) ──
+        const params = new URLSearchParams(window.location.search);
+        const tokenHash = params.get("token_hash");
+        const type = params.get("type");
+
+        if (tokenHash && type === "recovery") {
+            // Exchange the token_hash client-side — email scanners can't trigger this
+            // because they only GET the page HTML, they don't execute JavaScript.
+            supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" })
+                .then(({ error: verifyErr }) => {
+                    if (verifyErr) {
+                        console.error("Token exchange failed:", verifyErr.message);
+                        setError("This link has expired or has already been used. Please request a new one.");
+                        setLinkExpired(true);
+                    } else {
+                        setSessionReady(true);
+                    }
+                });
+            return; // Skip hash-fragment detection
+        }
+
+        // ── Flow 2: Hash fragment from Supabase redirect (forgot-password flow) ──
         const hash = window.location.hash;
         if (hash.includes("error_description=")) {
             const desc = new URLSearchParams(hash.substring(1)).get("error_description");

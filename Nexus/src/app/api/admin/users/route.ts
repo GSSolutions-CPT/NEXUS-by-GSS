@@ -171,6 +171,8 @@ export async function POST(request: Request) {
         }
 
         // Step 3: Generate a password-reset (magic) link so the user sets their own password.
+        // We extract the token_hash and build a custom link that goes directly to our app.
+        // This prevents email scanners from consuming the one-time token via Supabase's /auth/v1/verify.
         const PRODUCTION_URL = "https://nexus.globalsecuritysolutions.co.za";
         const rawSiteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
         const isDeadPreview = rawSiteUrl && /[a-z0-9]+-[a-z0-9]+-[a-z0-9]+-[a-z0-9]+\.vercel\.app/.test(rawSiteUrl);
@@ -182,8 +184,33 @@ export async function POST(request: Request) {
             options: { redirectTo: `${siteUrl}/auth/reset-password` },
         });
 
+        // Extract the token_hash from the generateLink response.
+        // Instead of using the action_link (which goes through Supabase's /auth/v1/verify and can be
+        // consumed by email scanners/prefetchers), we build a link directly to our app page.
+        // The token exchange happens client-side via verifyOtp(), so scanners can't burn it.
+        const tokenHash = linkData?.properties?.hashed_token || null;
+        const actionLink = linkData?.properties?.action_link || null;
+
+        // Build our scanner-proof invite link
+        let inviteLink: string | null = null;
+        if (tokenHash) {
+            inviteLink = `${siteUrl}/auth/reset-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
+        } else if (actionLink) {
+            // Fallback: try to extract token_hash from the action_link URL
+            try {
+                const actionUrl = new URL(actionLink);
+                const extractedHash = actionUrl.searchParams.get("token") || actionUrl.searchParams.get("token_hash");
+                if (extractedHash) {
+                    inviteLink = `${siteUrl}/auth/reset-password?token_hash=${encodeURIComponent(extractedHash)}&type=recovery`;
+                } else {
+                    inviteLink = actionLink; // Last resort: use raw action_link
+                }
+            } catch {
+                inviteLink = actionLink;
+            }
+        }
+
         // #8/#9 — Build WhatsApp share URL with the invite message
-        const inviteLink = linkData?.properties?.action_link || null;
         let whatsappShareUrl: string | null = null;
 
         if (inviteLink) {
