@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TestSetups")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6b3e63d96a2cde46fdbb5116eae77e9fc146cafd")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+89bd70b671795a4c7ce7ab0bd9e45df6a6ed6e8b")]
 [assembly: System.Reflection.AssemblyProductAttribute("TestSetups")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TestSetups")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
