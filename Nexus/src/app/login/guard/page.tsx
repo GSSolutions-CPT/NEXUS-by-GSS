@@ -96,9 +96,9 @@ export default function GuardLogin() {
                                 
                                 <form onSubmit={handleLogin} className="w-full space-y-4 text-left">
                                     {error && <div className="p-3 bg-red-500/20 text-red-300 text-xs rounded-xl font-bold">{error}</div>}
-                                    <input type="email" placeholder="Guard ID / Email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full h-12 rounded-xl bg-emerald-950 border border-emerald-700/50 px-4 text-emerald-100 focus:ring-2 focus:ring-emerald-500 outline-none" />
+                                    <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full h-12 rounded-xl bg-emerald-950 border border-emerald-700/50 px-4 text-emerald-100 focus:ring-2 focus:ring-emerald-500 outline-none" />
                                     <div className="relative">
-                                        <input type={showPassword?"text":"password"} placeholder="PIN / Password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full h-12 rounded-xl bg-emerald-950 border border-emerald-700/50 px-4 pr-12 text-emerald-100 focus:ring-2 focus:ring-emerald-500 outline-none" />
+                                        <input type={showPassword?"text":"password"} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full h-12 rounded-xl bg-emerald-950 border border-emerald-700/50 px-4 pr-12 text-emerald-100 focus:ring-2 focus:ring-emerald-500 outline-none" />
                                         <button type="button" onClick={()=>setShowPassword(!showPassword)} aria-label="Toggle password visibility" className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600 hover:text-emerald-400"><Eye className="w-5 h-5"/></button>
                                     </div>
                                     <button type="button" onClick={() => setMode("forgot")} className="text-xs text-emerald-500 hover:text-emerald-400 font-semibold pt-1">Forgot password?</button>

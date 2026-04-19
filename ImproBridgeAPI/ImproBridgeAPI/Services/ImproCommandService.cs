@@ -273,16 +273,24 @@ namespace ImproBridgeAPI.Services
                         baseDomain[] tagTypes = api.findByHsql(ttQuery, 50);
                         if (tagTypes != null && tagTypes.Length > 0)
                         {
-                            // Log all available tag types for debugging
+                            tagType? targetTagType = null;
                             for (int i = 0; i < tagTypes.Length; i++)
                             {
                                 var ttItem = (tagType)tagTypes[i];
                                 _logger.LogInformation("[Impro SDK] Available TagType[{Index}]: ID={Id}, Name={Name}", i, ttItem.id, ttItem.name);
+                                if (ttItem.name != null && (ttItem.name.Equals("Personal Access Code", StringComparison.OrdinalIgnoreCase) || ttItem.name.Equals("Personal Access Code")))
+                                {
+                                    targetTagType = ttItem;
+                                }
                             }
-                            var firstType = (tagType)tagTypes[0];
-                            tt.id = firstType.id;
+                            if (targetTagType == null)
+                            {
+                                targetTagType = (tagType)tagTypes[0];
+                            }
+                            
+                            tt.id = targetTagType.id;
                             tagTypeFound = true;
-                            _logger.LogInformation("[Impro SDK] Using tag type: ID={Id}, Name={Name}", firstType.id, firstType.name);
+                            _logger.LogInformation("[Impro SDK] Using tag type: ID={Id}, Name={Name}", targetTagType.id, targetTagType.name);
                         }
                         break; // Query succeeded (even if empty)
                     }

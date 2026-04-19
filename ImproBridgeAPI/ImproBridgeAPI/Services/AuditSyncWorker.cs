@@ -2,23 +2,18 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using ImproBridgeAPI.Models;
+using Portal.Api;
 
 namespace ImproBridgeAPI.Services
 {
-    /// <summary>
-    /// Background worker that periodically polls the Impro hardware for door scan
-    /// transactions and pushes them up to the Supabase `audit_logs` table.
-    /// This gives the cloud dashboard near real-time visibility into physical events.
-    /// </summary>
-    public class AuditSyncWorker : BackgroundService
+    public class AuditSyncWorker : BackgroundService, TransackListener
     {
         private readonly ILogger<AuditSyncWorker> _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly IConfiguration _configuration;
         private readonly HttpClient _httpClient;
-
-        // Track the last sync timestamp so we only pull new events each cycle
-        private DateTime _lastSyncTimestamp = DateTime.UtcNow.AddHours(-1); // Start by pulling the last hour
+        
+        private PortalAPI? _api;
 
         public AuditSyncWorker(
             ILogger<AuditSyncWorker> logger,
@@ -41,74 +36,116 @@ namespace ImproBridgeAPI.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Audit Sync Worker is starting. Will poll hardware logs every 30 seconds.");
+            _logger.LogInformation("[AUDIT-SYNC] Audit Sync Worker is starting with Real-time Event Stream Listener.");
 
-            // Wait 10 seconds on startup to let the Impro SDK initialize
+            // Wait until Impro SDK is able to login by checking our impro service first
             await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
 
-            // Fallback polling loop with exponential backoff on failures
+            var serverUrl = _configuration["ImproServerUrl"] ?? "127.0.0.1";
+            var serverPort = int.TryParse(_configuration["ImproServerPort"], out var p) ? p : 10010;
+            var username = _configuration["ImproUsername"] ?? "sysdba";
+            var password = _configuration["ImproPassword"] ?? "masterkey";
+
             int consecutiveFailures = 0;
-            const int baseDelaySeconds = 120;  // 2 minutes between polls
-            const int maxDelaySeconds = 600;   // 10 minutes cap on backoff
+            const int maxDelaySeconds = 60;
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
-                    await SyncAuditLogsAsync(stoppingToken);
-                    consecutiveFailures = 0; // Reset on success
+                    if (_api == null || !_api.socket.isConnected())
+                    {
+                        _logger.LogWarning("[AUDIT-SYNC] Connecting to Real-time API Stream...");
+                        _api = new PortalAPI("AuditSyncWorker", true, true, true);
+                        if (_api.connect(serverUrl, serverPort, 5000))
+                        {
+                            _logger.LogInformation("[AUDIT-SYNC] Logged in to stream...");
+                            _api.login(username, Encoding.UTF8.GetBytes(password));
+                            
+                            _api.registerListener(this);
+                            string key = "filter";
+                            string value = ""; // Listen to ALL access events
+                            _api.sendCommand("1", "22", key, value, true);
+
+                            _logger.LogInformation("[AUDIT-SYNC] Real-time Listener registered successfully.");
+                            consecutiveFailures = 0;
+                        }
+                        else
+                        {
+                            _logger.LogError("[AUDIT-SYNC] Stream connection failed.");
+                            throw new Exception("Connection to stream failed.");
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
                     consecutiveFailures++;
-                    var backoffSeconds = Math.Min(baseDelaySeconds * (int)Math.Pow(2, consecutiveFailures - 1), maxDelaySeconds);
-                    _logger.LogError(ex, "Audit sync failed (attempt {Attempt}). Next retry in {Delay}s.", consecutiveFailures, backoffSeconds);
+                    var backoffSeconds = Math.Min(5 * consecutiveFailures, maxDelaySeconds);
+                    _logger.LogError(ex, "[AUDIT-SYNC] Reconnection failed (attempt {Attempt}). Retry in {Delay}s.", consecutiveFailures, backoffSeconds);
                     await Task.Delay(TimeSpan.FromSeconds(backoffSeconds), stoppingToken);
-                    continue; // Skip the normal delay below
                 }
 
-                // Normal polling interval
-                await Task.Delay(TimeSpan.FromSeconds(baseDelaySeconds), stoppingToken);
+                await Task.Delay(5000, stoppingToken);
             }
 
             _logger.LogInformation("Audit Sync Worker is stopping.");
+            
+            try
+            {
+                if (_api != null)
+                {
+                    _api.disconnect();
+                    if (_api.socket != null && _api.socket.isConnected())
+                        _api.socket.disconnect();
+                }
+            } 
+            catch { }
         }
 
-        private async Task SyncAuditLogsAsync(CancellationToken stoppingToken)
+        public void onConnectionLost()
         {
-            // 1. Pull transactions from the physical Impro hardware via the SDK
-            using var scope = _serviceProvider.CreateScope();
-            var improService = scope.ServiceProvider.GetRequiredService<IImproCommandService>();
+            _logger.LogWarning("[AUDIT-SYNC] Stream connection lost! Will attempt reconnect on next loop cycle.");
+        }
 
-            string internalToken = "worker-service-token";
-            var transactions = improService.GetTransactions(_lastSyncTimestamp, internalToken);
-
-            if (transactions == null || transactions.Count == 0)
+        public void onTransackReceived(transack transaction)
+        {
+            _logger.LogInformation("[AUDIT-SYNC] Received real-time transaction event!");
+            try 
             {
-                return; // No new hardware events
+                // We must run the async Supabase sync on a background task so we don't block the socket thread
+                Task.Run(() => ProcessTransactionAsync(transaction));
             }
-
-            _logger.LogInformation($"Found {transactions.Count} new hardware transaction(s) to push to Supabase.");
-
-            // 2. Transform hardware transactions into Supabase audit_logs payloads
-            var auditPayloads = new List<AuditLogPayload>();
-
-            foreach (var txn in transactions)
+            catch (Exception ex)
             {
-                // Try to find the visitor associated with this tag code
+                _logger.LogError(ex, "[AUDIT-SYNC] Error handling incoming transaction event.");
+            }
+        }
+
+        private async Task ProcessTransactionAsync(transack txn)
+        {
+            try
+            {
+                string tagCode = txn.trtagcode ?? "";
+                string masterName = txn.master != null ? $"{txn.master.firstName} {txn.master.lastName}" : "Unknown Person";
+                string doorName = txn.terminal?.name ?? txn.trlocname ?? "Unknown Door";
+                string eventType = txn.@event?.name ?? "Scan Event";
+                DateTime timestamp = DateTime.TryParse(txn.datetimeutc, out var parsedDt) ? parsedDt : DateTime.UtcNow;
+
+                _logger.LogInformation($"[AUDIT-SYNC] Pushing: {eventType} - {masterName} at {doorName}");
+
                 string? visitorId = null;
                 string? unitId = null;
 
-                if (!string.IsNullOrEmpty(txn.TagCode))
+                if (!string.IsNullOrEmpty(tagCode))
                 {
                     try
                     {
-                        var lookupUrl = $"/rest/v1/visitors?pin_code=eq.{txn.TagCode}&select=id,unit_id&limit=1";
-                        var lookupResponse = await _httpClient.GetAsync(lookupUrl, stoppingToken);
+                        var lookupUrl = $"/rest/v1/visitors?pin_code=eq.{tagCode}&select=id,unit_id&limit=1";
+                        var lookupResponse = await _httpClient.GetAsync(lookupUrl);
 
                         if (lookupResponse.IsSuccessStatusCode)
                         {
-                            var lookupContent = await lookupResponse.Content.ReadAsStringAsync(stoppingToken);
+                            var lookupContent = await lookupResponse.Content.ReadAsStringAsync();
                             var visitors = JsonSerializer.Deserialize<List<VisitorLookup>>(lookupContent);
 
                             if (visitors != null && visitors.Count > 0)
@@ -120,52 +157,43 @@ namespace ImproBridgeAPI.Services
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, $"Failed to lookup visitor for tag {txn.TagCode}. Audit log will be orphaned.");
+                        _logger.LogWarning(ex, $"Failed to lookup visitor for tag {tagCode}. Audit log will be orphaned.");
                     }
                 }
 
-                var actionDescription = $"{txn.EventType}: {txn.MasterName} at {txn.DoorName}";
+                var actionDescription = $"{eventType}: {masterName} at {doorName}";
 
-                auditPayloads.Add(new AuditLogPayload
+                var payload = new AuditLogPayload
                 {
                     Action = actionDescription,
-                    Timestamp = txn.Timestamp.ToString("o"), // ISO 8601 for Postgres TIMESTAMPTZ
+                    Timestamp = timestamp.ToString("o"), 
                     VisitorId = visitorId,
                     UnitId = unitId
-                });
-            }
+                };
 
-            // 3. Batch insert into Supabase audit_logs table
-            if (auditPayloads.Count > 0)
-            {
+                var payloadList = new List<AuditLogPayload> { payload };
                 var jsonBody = new StringContent(
-                    JsonSerializer.Serialize(auditPayloads),
+                    JsonSerializer.Serialize(payloadList),
                     Encoding.UTF8,
                     "application/json"
                 );
 
                 var insertUrl = "/rest/v1/audit_logs";
-                var insertResponse = await _httpClient.PostAsync(insertUrl, jsonBody, stoppingToken);
+                var insertResponse = await _httpClient.PostAsync(insertUrl, jsonBody);
 
-                if (insertResponse.IsSuccessStatusCode)
+                if (!insertResponse.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation($"Successfully pushed {auditPayloads.Count} audit log(s) to Supabase.");
-
-                    // Update the watermark to the latest transaction timestamp
-                    _lastSyncTimestamp = transactions.Max(t => t.Timestamp);
+                    var errorBody = await insertResponse.Content.ReadAsStringAsync();
+                    _logger.LogError($"Failed to insert audit log into Supabase. Status: {insertResponse.StatusCode}. Body: {errorBody}");
                 }
-                else
-                {
-                    var errorBody = await insertResponse.Content.ReadAsStringAsync(stoppingToken);
-                    _logger.LogError($"Failed to insert audit logs into Supabase. Status: {insertResponse.StatusCode}. Body: {errorBody}");
-                }
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError(ex, "[AUDIT-SYNC] Critical error in ProcessTransactionAsync");
             }
         }
     }
 
-    /// <summary>
-    /// Lightweight model for looking up a visitor by their PIN code.
-    /// </summary>
     internal class VisitorLookup
     {
         [System.Text.Json.Serialization.JsonPropertyName("id")]
