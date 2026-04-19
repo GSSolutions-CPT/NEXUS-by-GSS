@@ -215,7 +215,7 @@ namespace ImproBridgeAPI.Services
                 }
 
                 // Check if a Master with this PIN already exists (handles retries)
-                master savedMaster = null;
+                master? savedMaster = null;
                 try
                 {
                     var existingMasters = api.findByHsql($"from Master where idnumber = '{request.PinCode}'", 1);
@@ -286,7 +286,7 @@ namespace ImproBridgeAPI.Services
                         }
                         break; // Query succeeded (even if empty)
                     }
-                    catch (Exception ttEx)
+                    catch (Exception)
                     {
                         _logger.LogDebug("[Impro SDK] TagType query '{Query}' failed, trying next...", ttQuery);
                     }
@@ -574,7 +574,7 @@ namespace ImproBridgeAPI.Services
                 // Try multiple possible entity names — the Impro Portal version determines the correct one
                 string sinceStr = since.ToString("yyyy-MM-dd HH:mm:ss");
                 string[] entityNames = { "TransAck", "Transack", "transAck", "Transaction", "transactLog" };
-                baseDomain[] txnResults = null;
+                baseDomain[]? txnResults = null;
 
                 foreach (var entityName in entityNames)
                 {
@@ -585,7 +585,7 @@ namespace ImproBridgeAPI.Services
                         _logger.LogInformation("[Impro SDK] Transaction query succeeded with entity: {Entity}", entityName);
                         break; // Found the right entity name
                     }
-                    catch (Exception queryEx)
+                    catch (Exception)
                     {
                         _logger.LogDebug("[Impro SDK] Entity '{Entity}' not found, trying next...", entityName);
                         // Try next entity name

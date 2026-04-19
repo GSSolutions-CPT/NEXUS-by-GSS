@@ -1,4 +1,4 @@
-﻿using DCS.src;
+using DCS.src;
 using System.Windows;
 
 namespace DCS
@@ -6,9 +6,9 @@ namespace DCS
     /// <summary>
     /// Interaction logic for apiServer.xaml
     /// </summary>
-    public partial class apiServer : Window
+    public partial class ApiServer : Window
     {
-        public apiServer()
+        public ApiServer()
         {
             InitializeComponent();
         }

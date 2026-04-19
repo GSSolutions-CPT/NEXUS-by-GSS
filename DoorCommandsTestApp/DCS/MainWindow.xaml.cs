@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -84,7 +84,7 @@ namespace DCS {
 			info.Show();
 		}
 		private void Button_Click_server(object sender, RoutedEventArgs e) {
-			apiServer apiServer = new apiServer();
+			ApiServer apiServer = new ApiServer();
 			apiServer.ShowDialog();
 			GetDoorNames();
 		}

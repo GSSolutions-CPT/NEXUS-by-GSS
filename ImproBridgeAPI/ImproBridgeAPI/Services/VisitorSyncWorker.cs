@@ -77,6 +77,13 @@ namespace ImproBridgeAPI.Services
 
             var content = await response.Content.ReadAsStringAsync(stoppingToken);
             _logger.LogWarning("[VISITOR-POLL] RPC response: {Content}", content?.Substring(0, Math.Min(content?.Length ?? 0, 500)));
+            
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                _logger.LogWarning("[VISITOR-POLL] Empty response from Supabase. Sleeping.");
+                return;
+            }
+
             var pendingVisitors = JsonSerializer.Deserialize<List<PendingVisitor>>(content);
 
             if (pendingVisitors == null || !pendingVisitors.Any())
@@ -107,10 +114,13 @@ namespace ImproBridgeAPI.Services
                     if (groupsResponse.IsSuccessStatusCode)
                     {
                         var groupsContent = await groupsResponse.Content.ReadAsStringAsync(stoppingToken);
-                        var groups = JsonSerializer.Deserialize<List<UnitAccessGroup>>(groupsContent);
-                        if (groups != null && groups.Any())
+                        if (!string.IsNullOrWhiteSpace(groupsContent))
                         {
-                            accessGroupIds = groups.Select(g => g.AccessGroupId).ToList();
+                            var groups = JsonSerializer.Deserialize<List<UnitAccessGroup>>(groupsContent);
+                            if (groups != null && groups.Any())
+                            {
+                                accessGroupIds = groups.Select(g => g.AccessGroupId).ToList();
+                            }
                         }
                     }
 

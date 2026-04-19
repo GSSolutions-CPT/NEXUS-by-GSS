@@ -1,4 +1,4 @@
-﻿using Portal.Api;
+using Portal.Api;
 using Portal.Api.pvt;
 using System;
 using System.Collections.Generic;
@@ -248,7 +248,7 @@ namespace PortalSDKSample
                 //now save MASTER_DETAIL object
                 master mg_return = api.saveOrUpdate(m_return);
             }
-            catch (Exception exc)
+            catch (Exception)
             {
                 InsertMasterDataResponseTextBox.AppendText(api.getDebugStream().readDebugMessage() + Environment.NewLine);
             }
