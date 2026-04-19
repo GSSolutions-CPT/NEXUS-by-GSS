@@ -64,7 +64,7 @@ namespace ImproBridgeAPI.Services
                             
                             _api.registerListener(this);
                             string key = "filter";
-                            string value = ""; // Listen to ALL access events
+                            string value = "eventType.etName='Allowed'"; // Cannot be empty, otherwise Java backend crashes!
                             _api.sendCommand("1", "22", key, value, true);
 
                             _logger.LogInformation("[AUDIT-SYNC] Real-time Listener registered successfully.");
