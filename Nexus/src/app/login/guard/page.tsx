@@ -84,7 +84,7 @@ export default function GuardLogin() {
                             <input type="email" placeholder="Guard ID / Email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full h-12 rounded-xl bg-emerald-950 border border-emerald-700/50 px-4 text-emerald-100 focus:ring-2 focus:ring-emerald-500 outline-none" />
                             <div className="relative">
                                 <input type={showPassword?"text":"password"} placeholder="PIN / Password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full h-12 rounded-xl bg-emerald-950 border border-emerald-700/50 px-4 pr-12 text-emerald-100 focus:ring-2 focus:ring-emerald-500 outline-none" />
-                                <button type="button" onClick={()=>setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600 hover:text-emerald-400"><Eye className="w-5 h-5"/></button>
+                                <button type="button" onClick={()=>setShowPassword(!showPassword)} aria-label="Toggle password visibility" className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600 hover:text-emerald-400"><Eye className="w-5 h-5"/></button>
                             </div>
                             <button type="submit" disabled={loading} className="w-full h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black tracking-widest uppercase transition-all mt-4">{loading ? "Verifying..." : "Access Terminal"}</button>
                         </form>

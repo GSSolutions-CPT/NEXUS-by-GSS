@@ -137,7 +137,7 @@ export default function OwnerLogin() {
                                     <input type="email" placeholder="resident@domain.com" value={email} onChange={e => setEmail(e.target.value)} required className="w-full h-[52px] rounded-xl bg-slate-900 border border-slate-700 px-4 text-white focus:ring-2 focus:ring-sky-500/50 outline-none" />
                                     <div className="relative">
                                         <input type={showPassword?"text":"password"} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="w-full h-[52px] rounded-xl bg-slate-900 border border-slate-700 px-4 pr-12 text-white focus:ring-2 focus:ring-sky-500/50 outline-none" />
-                                        <button type="button" onClick={()=>setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"><Eye className="w-5 h-5"/></button>
+                                        <button type="button" aria-label="Toggle password visibility" onClick={()=>setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"><Eye className="w-5 h-5"/></button>
                                     </div>
                                     <button type="button" onClick={() => setMode("forgot")} className="text-xs text-sky-400 hover:text-sky-300 pt-1">Forgot password?</button>
                                     <button type="submit" disabled={loading} className="w-full h-[52px] rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold transition-all shadow-[0_4px_15px_rgba(14,165,233,0.3)]">{loading ? "Logging in..." : "Sign In to Dashboard"}</button>

@@ -239,7 +239,7 @@ export default function GuestPassPage({ params }: { params: Promise<{ id: string
 
                 <div className="text-center">
                     <p className="text-[10px] text-slate-500 font-medium uppercase tracking-widest mb-2">Secured Professionally By</p>
-                    <a href="https://www.globalsecuritysolutions.co.za/" target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700/50 rounded-lg py-2 px-4 transition-colors">
+                    <a href="https://www.globalsecuritysolutions.co.za/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700/50 rounded-lg py-2 px-4 transition-colors">
                         <Image src="/logo-192.svg" alt="GSS Logo" width={16} height={16} className="opacity-80 grayscale" />
                         <span className="text-xs font-semibold text-slate-300">Global Security Solutions</span>
                     </a>
