@@ -39,7 +39,6 @@ CREATE TABLE visitors (
     unit_id UUID REFERENCES units(id) ON DELETE CASCADE,
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
-    email TEXT,
     phone TEXT,
     needs_parking BOOLEAN DEFAULT FALSE,
     pin_code TEXT UNIQUE NOT NULL, -- The generated Wiegand-compliant PIN

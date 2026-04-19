@@ -26,6 +26,9 @@ export default function InviteVisitorPage() {
     const [phone, setPhone] = useState("");
     const [needsParking, setNeedsParking] = useState(false);
 
+    // POPI Consent
+    const [consentGiven, setConsentGiven] = useState(false);
+
     // Contractor / Guest Type
     const [visitorType, setVisitorType] = useState<"guest" | "contractor">("guest");
     const [contractorStartDate, setContractorStartDate] = useState("");
@@ -68,6 +71,11 @@ export default function InviteVisitorPage() {
 
         // Validate access windows
         let validWindows: AccessWindow[] = [];
+
+        if (!consentGiven) {
+            setError("You must confirm POPI Act consent before inviting a visitor.");
+            setLoading(false); return;
+        }
 
         if (visitorType === "contractor") {
             if (!contractorStartDate || !contractorEndDate) {
@@ -144,6 +152,7 @@ export default function InviteVisitorPage() {
             setLastName("");
             setPhone("");
             setNeedsParking(false);
+            setConsentGiven(false);
             setAccessWindows([{ date: "", from: "08:00", to: "17:00" }]);
             setContractorStartDate("");
             setContractorEndDate("");
@@ -162,6 +171,11 @@ export default function InviteVisitorPage() {
         setLoading(true);
         setError(null);
         setBulkResults(null);
+
+        if (!consentGiven) {
+            setError("You must confirm POPI Act consent before uploading visitor data.");
+            setLoading(false); return;
+        }
 
         try {
             const formData = new FormData();
@@ -500,6 +514,16 @@ export default function InviteVisitorPage() {
                                     </div>
                                 </div>
 
+                                {/* POPI Consent */}
+                                <div className="flex items-start gap-3 p-4 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                                    <input type="checkbox" id="consent" checked={consentGiven} onChange={e => setConsentGiven(e.target.checked)} required
+                                        className="mt-1 w-5 h-5 rounded bg-slate-800 border-slate-600 text-sky-500 focus:ring-sky-500/50 cursor-pointer" />
+                                    <div className="flex-1">
+                                        <label htmlFor="consent" className="font-semibold text-white cursor-pointer block text-sm">POPI Act Consent Confirmation</label>
+                                        <p className="text-xs text-slate-500 mt-1">I confirm that I have obtained consent from this visitor to process and share their personal details with Global Security Solutions for access control purposes.</p>
+                                    </div>
+                                </div>
+
                                 {/* Submit */}
                                 <button type="submit" disabled={loading}
                                     className="w-full h-12 flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-400 text-white font-bold rounded-xl transition-all shadow-[0_4px_14px_0_rgba(14,165,233,0.39)] hover:shadow-[0_6px_20px_rgba(14,165,233,0.23)] hover:-translate-y-0.5 disabled:shadow-none disabled:transform-none mt-4">
@@ -564,6 +588,17 @@ export default function InviteVisitorPage() {
                                         <p className="text-xs text-slate-500 mt-2">CSV must include FirstName, LastName, Phone, ValidFrom, ValidUntil</p>
                                     </label>
                                     
+                                    {bulkFile && (
+                                        <div className="mt-6 flex items-start gap-3 p-4 rounded-lg bg-slate-900/50 border border-slate-700/50 text-left">
+                                            <input type="checkbox" id="bulk-consent" checked={consentGiven} onChange={e => setConsentGiven(e.target.checked)}
+                                                className="mt-1 w-5 h-5 rounded bg-slate-800 border-slate-600 text-sky-500 focus:ring-sky-500/50 cursor-pointer flex-shrink-0" />
+                                            <div className="flex-1">
+                                                <label htmlFor="bulk-consent" className="font-semibold text-white cursor-pointer block text-sm">POPI Act Consent</label>
+                                                <p className="text-xs text-slate-500 mt-1">I confirm that all individuals in this list have consented to their data being shared with Global Security Solutions.</p>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {bulkFile && (
                                         <button onClick={handleBulkUpload} disabled={loading}
                                             className="w-full mt-6 h-12 flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-400 text-white font-bold rounded-xl transition-all shadow-lg">

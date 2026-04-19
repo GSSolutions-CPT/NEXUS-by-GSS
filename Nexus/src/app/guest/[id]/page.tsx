@@ -31,6 +31,9 @@ export default function GuestPassPage({ params }: { params: Promise<{ id: string
     const [error, setError] = useState<string | null>(null);
     const [mounted, setMounted] = useState(false);
 
+    const [redacting, setRedacting] = useState(false);
+    const [redactSuccess, setRedactSuccess] = useState(false);
+
     useEffect(() => {
         setMounted(true);
         const fetchPass = async () => {
@@ -96,6 +99,21 @@ export default function GuestPassPage({ params }: { params: Promise<{ id: string
     const isNotStarted = start > now;
 
     const fmt = (d: string) => new Date(d).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" });
+
+    const handleRedactData = async () => {
+        if (!confirm("Are you sure you want to delete your personal data? This will instantly revoke your access pass if it is still active.")) return;
+        setRedacting(true);
+        try {
+            const res = await fetch(`/api/guest/${id}/redact`, { method: "POST" });
+            if (!res.ok) throw new Error("Failed to redact data");
+            setRedactSuccess(true);
+            setPass(prev => prev ? { ...prev, first_name: "[REDACTED]", last_name: "[REDACTED]", status: "Revoked" } : null);
+        } catch (err) {
+            alert("An error occurred. Please contact the property manager.");
+        } finally {
+            setRedacting(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-between pb-8 relative overflow-hidden font-sans">
@@ -226,10 +244,20 @@ export default function GuestPassPage({ params }: { params: Promise<{ id: string
                         <span className="text-xs font-semibold text-slate-300">Global Security Solutions</span>
                     </a>
 
-                    <div className="mt-6 flex items-center justify-center gap-4 text-xs">
-                        <Link href="/privacy" className="text-slate-500 hover:text-slate-300 transition-colors">Privacy Policy</Link>
-                        <span className="text-slate-700">•</span>
-                        <Link href="/terms" className="text-slate-500 hover:text-slate-300 transition-colors">Terms of Service</Link>
+                    <div className="mt-6 flex flex-col items-center justify-center gap-4 text-xs">
+                        <div className="flex items-center gap-4">
+                            <Link href="/privacy" className="text-slate-500 hover:text-slate-300 transition-colors">Privacy Policy</Link>
+                            <span className="text-slate-700">•</span>
+                            <Link href="/terms" className="text-slate-500 hover:text-slate-300 transition-colors">Terms of Service</Link>
+                        </div>
+                        
+                        {!redactSuccess ? (
+                            <button onClick={handleRedactData} disabled={redacting} className="mt-2 text-rose-500/70 hover:text-rose-400 transition-colors underline decoration-rose-500/30 underline-offset-4">
+                                {redacting ? "Processing..." : "POPI Act: Request Data Deletion"}
+                            </button>
+                        ) : (
+                            <span className="mt-2 text-emerald-500/80 font-medium">Personal data successfully redacted.</span>
+                        )}
                     </div>
                 </div>
             </div>
