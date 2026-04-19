@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { createHmac } from "crypto";
 
 export async function POST(request: Request) {
     try {
@@ -27,10 +28,25 @@ export async function POST(request: Request) {
         const { door, action } = body;
 
         const bridgeUrl = process.env.BRIDGE_URL || "http://localhost:5000";
+        const secret = process.env.BRIDGE_SHARED_SECRET;
+
+        if (!secret) {
+            console.error("CRITICAL: BRIDGE_SHARED_SECRET is not configured.");
+            return NextResponse.json({ error: "Server Configuration Error" }, { status: 500 });
+        }
+
+        const endpoint = "opendoor"; // The remote endpoint is actually opendoor
+        const timestamp = Math.floor(Date.now() / 1000).toString();
+        const message = `${timestamp}:${endpoint}`;
+        const signature = createHmac("sha256", secret).update(message).digest("hex");
 
         const res = await fetch(`${bridgeUrl}/api/opendoor`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "X-Bridge-Timestamp": timestamp,
+                "X-Bridge-Signature": signature,
+            },
             body: JSON.stringify({ door: door || 1, action: action || "pulse" }),
             signal: AbortSignal.timeout(5000), // 5s timeout for local hardware interaction
         });

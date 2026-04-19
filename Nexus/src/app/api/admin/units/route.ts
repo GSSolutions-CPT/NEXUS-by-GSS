@@ -1,5 +1,17 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import * as z from 'zod';
+
+const unitSchema = z.object({
+    name: z.string().min(1, "Name is required").max(100),
+    type: z.string().min(1, "Type is required").max(50),
+    floor: z.string().max(50).optional().nullable(),
+    accessGroupIds: z.array(z.number().int().positive()).optional()
+});
+
+const patchUnitSchema = unitSchema.extend({
+    id: z.string().uuid("Invalid unit ID")
+});
 
 // GET /api/admin/units — Fetch all units with their access groups and owner info
 export async function GET() {
@@ -95,11 +107,16 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { name, type, floor, accessGroupIds } = body;
-
-        if (!name || !type) {
-            return NextResponse.json({ error: "Name and type are required." }, { status: 400 });
+        const parseResult = unitSchema.safeParse(body);
+        
+        if (!parseResult.success) {
+            return NextResponse.json({ 
+                error: "Invalid input data", 
+                details: parseResult.error.flatten() 
+            }, { status: 400 });
         }
+
+        const { name, type, floor, accessGroupIds } = parseResult.data;
 
         // Create the unit
         const { data: newUnit, error: insertErr } = await supabase
@@ -193,11 +210,16 @@ export async function PATCH(request: Request) {
         if (profile?.role !== 'SuperAdmin') return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
         const body = await request.json();
-        const { id, name, type, floor, accessGroupIds } = body;
+        const parseResult = patchUnitSchema.safeParse(body);
 
-        if (!id || !name || !type) {
-            return NextResponse.json({ error: "ID, Name and Type are required." }, { status: 400 });
+        if (!parseResult.success) {
+            return NextResponse.json({ 
+                error: "Invalid input data", 
+                details: parseResult.error.flatten() 
+            }, { status: 400 });
         }
+
+        const { id, name, type, floor, accessGroupIds } = parseResult.data;
 
         // 1. Update the unit record
         const { error: updateErr } = await supabase

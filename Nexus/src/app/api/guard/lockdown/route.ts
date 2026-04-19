@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { createHmac } from "crypto";
 
 export async function POST(request: Request) {
     try {
@@ -25,11 +26,26 @@ export async function POST(request: Request) {
         const { action = "lock" } = body;
 
         const bridgeUrl = process.env.BRIDGE_URL || "http://localhost:5000";
+        const secret = process.env.BRIDGE_SHARED_SECRET;
+
+        if (!secret) {
+            console.error("CRITICAL: BRIDGE_SHARED_SECRET is not configured.");
+            return NextResponse.json({ error: "Server Configuration Error" }, { status: 500 });
+        }
+
+        const endpoint = "lockdown"; // HMAC covers the endpoint name
+        const timestamp = Math.floor(Date.now() / 1000).toString();
+        const message = `${timestamp}:${endpoint}`;
+        const signature = createHmac("sha256", secret).update(message).digest("hex");
 
         // Send lockdown command to the C# Hardware Bridge
         const res = await fetch(`${bridgeUrl}/api/lockdown`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "X-Bridge-Timestamp": timestamp,
+                "X-Bridge-Signature": signature,
+            },
             body: JSON.stringify({ action }),
             signal: AbortSignal.timeout(5000),
         });
