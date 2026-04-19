@@ -3,10 +3,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Admin Dashboard CRUD', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate and login
-    await page.goto('/');
+    await page.goto('/login/admin');
     await page.fill('input[type="email"]', 'owner@nexustest.co.za');
     await page.fill('input[type="password"]', 'Nexus@Password123');
-    await page.click('button:has-text("Sign In to Nexus")');
+    await page.click('button:has-text("Sign In")');
     
     // Wait for the URL to change to the admin area
     await expect(page).toHaveURL(/.*admin/, { timeout: 30000 });
