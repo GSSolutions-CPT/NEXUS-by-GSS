@@ -259,7 +259,7 @@ namespace ImproBridgeAPI.Services
                 if (!string.IsNullOrEmpty(request.ExpiryDateTime) && request.ExpiryDateTime.Length >= 8)
                 {
                     t.expiryDate = request.ExpiryDateTime.Substring(0, 8);
-                    t.expiryTime = "2359"; // End-of-day (HHmm format) to avoid Portal validation error
+                    t.expiryTime = "235959"; // End-of-day (HHmmss format) to avoid Portal validation error
                 }
 
                 // Query available tag types from the Portal and use the first one
@@ -278,14 +278,20 @@ namespace ImproBridgeAPI.Services
                             {
                                 var ttItem = (tagType)tagTypes[i];
                                 _logger.LogInformation("[Impro SDK] Available TagType[{Index}]: ID={Id}, Name={Name}", i, ttItem.id, ttItem.name);
-                                if (ttItem.name != null && (ttItem.name.Equals("Personal Access Code", StringComparison.OrdinalIgnoreCase) || ttItem.name.Equals("Personal Access Code")))
+                                if (ttItem.name != null && (
+                                    ttItem.name.IndexOf("Personal Access Code", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                    ttItem.name.IndexOf("PIN", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                    ttItem.name.IndexOf("Code", StringComparison.OrdinalIgnoreCase) >= 0))
                                 {
                                     targetTagType = ttItem;
+                                    break;
                                 }
                             }
                             if (targetTagType == null)
                             {
-                                targetTagType = (tagType)tagTypes[0];
+                                // Strong preference for ID "1" which is usually PIN in Impro, otherwise fallback to first
+                                targetTagType = tagTypes.FirstOrDefault(x => ((tagType)x).id == "1") as tagType 
+                                    ?? (tagType)tagTypes[0];
                             }
                             
                             tt.id = targetTagType.id;
@@ -301,8 +307,8 @@ namespace ImproBridgeAPI.Services
                 }
                 if (!tagTypeFound)
                 {
-                    tt.id = "2"; // Fallback
-                    _logger.LogWarning("[Impro SDK] No tag types found via query. Using fallback ID 2.");
+                    tt.id = "1"; // Fallback to 1 (Standard PIN type)
+                    _logger.LogWarning("[Impro SDK] No tag types found via query. Using fallback ID 1.");
                 }
                 t.tagType = tt;
 
