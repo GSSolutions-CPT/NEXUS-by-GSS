@@ -138,6 +138,7 @@ namespace ImproBridgeAPI.Services
                             LastName = visitor.LastName,
                             Phone = visitor.Phone,
                             PinCode = visitor.PinCode,
+                            StartDateTime = visitor.StartTime.ToString("yyyyMMddHHmmss"),
                             // FIXED: Mapped to correct ExpiryTime variable
                             ExpiryDateTime = visitor.ExpiryTime.ToString("yyyyMMddHHmmss"),
                             AccessGroupIds = accessGroupIds.ToArray()

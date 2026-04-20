@@ -181,15 +181,15 @@ namespace ImproBridgeAPI.Services
 
             try
             {
-                _logger.LogInformation("[Impro SDK] Creating Master record for {First} {Last} (PIN: {Pin})",
-                    request.FirstName, request.LastName, request.PinCode);
+                _logger.LogInformation("[Impro SDK] Creating Master record for {First} {Last} (Phone: {Phone}, PIN: {Pin})",
+                    request.FirstName, request.LastName, request.Phone, request.PinCode);
 
                 // Create the Master (tagholder) record
                 master m = new master();
                 m.firstName = request.FirstName;
                 m.lastName = request.LastName;
                 m.displayName = $"{request.FirstName} {request.LastName}";
-                m.idnumber = request.PinCode; // Use PIN as the ID number for lookup
+                m.idnumber = request.Phone; // Visitor's contact number in ID Number field
                 m.current = "1"; // Active
 
                 // Assign to default site (site id "1" is typically the main/default site)
@@ -214,15 +214,15 @@ namespace ImproBridgeAPI.Services
                     m.setAttribute("mstStartDate", request.StartDateTime.Substring(0, 8));
                 }
 
-                // Check if a Master with this PIN already exists (handles retries)
+                // Check if a Master with this phone number already exists (handles retries)
                 master? savedMaster = null;
                 try
                 {
-                    var existingMasters = api.findByHsql($"from Master where idnumber = '{request.PinCode}'", 1);
+                    var existingMasters = api.findByHsql($"from Master where idnumber = '{request.Phone}'", 1);
                     if (existingMasters != null && existingMasters.Length > 0)
                     {
                         savedMaster = (master)existingMasters[0];
-                        _logger.LogInformation("[Impro SDK] Found existing Master ID: {MasterId} for PIN: {Pin}", savedMaster.id, request.PinCode);
+                        _logger.LogInformation("[Impro SDK] Found existing Master ID: {MasterId} for Phone: {Phone}", savedMaster.id, request.Phone);
                     }
                 }
                 catch (Exception lookupEx)
@@ -362,13 +362,13 @@ namespace ImproBridgeAPI.Services
                 _logger.LogInformation("[Impro SDK] Assigning Access Group {GroupId} to tag {TagCode}",
                     accessGroupId, tagCode);
 
-                // First, find the Master record associated with this tag code
+                // First, find the Master record by searching for a tag with this code
                 baseDomain[] masterSearch = api.findByHsql(
-                    $"from Master where mstIdnumber='{tagCode}'");
+                    $"select m from Master m join m.tags t where t.tagCode='{tagCode}'", 1);
 
                 if (masterSearch == null || masterSearch.Length == 0)
                 {
-                    _logger.LogError("[Impro SDK] No Master found with idnumber (PIN) '{TagCode}'", tagCode);
+                    _logger.LogError("[Impro SDK] No Master found with tagCode '{TagCode}'", tagCode);
                     return false;
                 }
 
