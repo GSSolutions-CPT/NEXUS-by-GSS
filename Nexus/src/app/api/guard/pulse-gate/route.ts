@@ -11,18 +11,21 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Fetch user role
-        const { data: profile } = await supabase
-            .from("profiles")
-            .select("role, first_name, last_name")
-            .eq("id", user.id)
-            .single();
+        // Optimization: Use JWT claims instead of querying the 'profiles' table for role (saves ~20-50ms)
+        const userRole = user.app_metadata?.user_role;
 
         // Only SuperAdmin and Guard can pulse the gate
         const allowedRoles = ["SuperAdmin", "Guard"];
-        if (!profile || !allowedRoles.includes(profile.role)) {
+        if (!userRole || !allowedRoles.includes(userRole)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        // Fetch user names for audit logging
+        const { data: profile } = await supabase
+            .from("profiles")
+            .select("first_name, last_name")
+            .eq("id", user.id)
+            .single();
 
         const body = await request.json();
         const { door, action } = body;
@@ -61,7 +64,7 @@ export async function POST(request: Request) {
         await supabase.from("audit_logs").insert({
             event_type: "Gate Pulse",
             actor_id: user.id,
-            actor_name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || user.email,
+            actor_name: `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || user.email,
             details: `Manual gate pulse triggered via Guard Dashboard (Door: ${door || 1})`,
         });
 

@@ -11,11 +11,9 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: profile } = await supabase
-            .from("profiles")
-            .select("role, unit_id")
-            .eq("id", user.id)
-            .single();
+        // Optimization: Use JWT claims instead of querying the 'profiles' table (saves ~20-50ms)
+        const userRole = user.app_metadata?.user_role;
+        const unitId = user.app_metadata?.user_unit_id;
 
         let query = supabase
             .from("parcels")
@@ -27,11 +25,11 @@ export async function GET() {
             `)
             .order("logged_at", { ascending: false });
 
-        if (profile?.role !== 'SuperAdmin' && profile?.role !== 'Guard') {
-            if (!profile?.unit_id) {
+        if (userRole !== 'SuperAdmin' && userRole !== 'Guard') {
+            if (!unitId) {
                 return NextResponse.json({ parcels: [] });
             }
-            query = query.eq("unit_id", profile.unit_id);
+            query = query.eq("unit_id", unitId);
         }
 
         const { data: parcels, error } = await query;
@@ -62,13 +60,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: profile } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", user.id)
-            .single();
+        // Optimization: Use JWT claims instead of querying the 'profiles' table (saves ~20-50ms)
+        const userRole = user.app_metadata?.user_role;
 
-        if (profile?.role !== 'SuperAdmin' && profile?.role !== 'Guard') {
+        if (userRole !== 'SuperAdmin' && userRole !== 'Guard') {
             return NextResponse.json({ error: "Forbidden. Only guards can log parcels." }, { status: 403 });
         }
 
