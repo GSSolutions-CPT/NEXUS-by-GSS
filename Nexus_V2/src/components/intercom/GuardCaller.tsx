@@ -134,6 +134,7 @@ export default function GuardCaller({ targetUser, onClose }: { targetUser: Targe
     };
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         startCall();
         return () => {
             endCall();

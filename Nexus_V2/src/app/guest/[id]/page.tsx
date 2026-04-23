@@ -35,6 +35,7 @@ export default function GuestPassPage({ params }: { params: Promise<{ id: string
     const [redactSuccess, setRedactSuccess] = useState(false);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setMounted(true);
         const fetchPass = async () => {
             try {

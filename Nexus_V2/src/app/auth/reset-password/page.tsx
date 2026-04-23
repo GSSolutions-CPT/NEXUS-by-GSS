@@ -63,6 +63,7 @@ function ResetPasswordForm() {
         if (hash.includes("error_description=")) {
             const desc = new URLSearchParams(hash.substring(1)).get("error_description");
             if (desc) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setError(desc.replace(/\+/g, " "));
                 setLinkExpired(true); // #7
                 return; // Don't bother listening for auth events
