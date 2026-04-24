@@ -155,24 +155,7 @@ namespace ImproBridgeAPI.Services
                                 improService.AssignAccessGroup(visitorRequest.PinCode, groupId, internalToken);
                             }
 
-                            string expiryDateStr = visitorRequest.ExpiryDateTime.Substring(0, 8);
-                            string expiryTimeStr = visitorRequest.ExpiryDateTime.Substring(8, 6);
-
-                            string safeFirstName = System.Security.SecurityElement.Escape(visitorRequest.FirstName);
-                            string safeLastName = System.Security.SecurityElement.Escape(visitorRequest.LastName);
-                            string safePinCode = System.Security.SecurityElement.Escape(visitorRequest.PinCode);
-
-                            string xmlPayload = $@"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
-                            <protocol id=""82945242"" version=""1.0"">
-                              <dbupdate>
-                                <Master id=""0"" current=""1"" firstName=""{safeFirstName}"" lastName=""{safeLastName}"">
-                                 <tag id=""0"" tagCode=""{safePinCode}"" expiryDate=""{expiryDateStr}"" expiryTime=""{expiryTimeStr}"" />
-                                </Master>
-                                <withClause>tags</withClause>
-                              </dbupdate>
-                            </protocol>";
-
-                            syncSuccess = improService.PerformAction(xmlPayload, internalToken);
+                            syncSuccess = true;
                         }
                         else
                         {

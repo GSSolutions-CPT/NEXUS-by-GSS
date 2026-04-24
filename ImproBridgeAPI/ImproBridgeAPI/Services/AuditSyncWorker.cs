@@ -127,8 +127,31 @@ namespace ImproBridgeAPI.Services
             {
                 string tagCode = txn.trtagcode ?? "";
                 string masterName = txn.master != null ? $"{txn.master.firstName} {txn.master.lastName}" : "Unknown Person";
-                string doorName = txn.terminal?.name ?? txn.trlocname ?? "Unknown Door";
-                string eventType = txn.@event?.name ?? "Scan Event";
+
+                string doorName = txn.trlocname ?? "Unknown Door";
+                if (txn.terminal != null)
+                {
+                    doorName = txn.terminal.name;
+                    try
+                    {
+                        var prop = txn.terminal.GetType().GetProperty("nameOriginal");
+                        if (prop != null) doorName = prop.GetValue(txn.terminal)?.ToString() ?? txn.terminal.name;
+                    }
+                    catch { }
+                }
+
+                string eventType = "Scan Event";
+                if (txn.@event != null)
+                {
+                    eventType = txn.@event.name;
+                    try
+                    {
+                        var prop = txn.@event.GetType().GetProperty("nameOriginal");
+                        if (prop != null) eventType = prop.GetValue(txn.@event)?.ToString() ?? txn.@event.name;
+                    }
+                    catch { }
+                }
+
                 DateTime timestamp = DateTime.TryParse(txn.datetimeutc, out var parsedDt) ? parsedDt : DateTime.UtcNow;
 
                 _logger.LogInformation($"[AUDIT-SYNC] Pushing: {eventType} - {masterName} at {doorName}");
