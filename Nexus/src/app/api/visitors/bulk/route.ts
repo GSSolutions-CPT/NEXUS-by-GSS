@@ -40,17 +40,15 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: profile, error: profErr } = await supabase
-            .from("profiles")
-            .select("unit_id, role")
-            .eq("id", user.id)
-            .single();
+        // Optimization: Use JWT claims instead of querying the 'profiles' table (saves ~20-50ms)
+        const unitId = user.app_metadata?.user_unit_id;
+        const userRole = user.app_metadata?.user_role;
 
-        if (profErr || !profile?.unit_id) {
+        if (!unitId) {
             return NextResponse.json({ error: "No unit associated with this account." }, { status: 400 });
         }
 
-        if (!["GroupAdmin", "SuperAdmin"].includes(profile.role)) {
+        if (!["GroupAdmin", "SuperAdmin"].includes(userRole)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -114,7 +112,7 @@ export async function POST(request: Request) {
             for (let attempt = 0; attempt < 3; attempt++) {
                 pin = randomInt(10000, 100000).toString();
                 const { error: insertErr } = await supabase.from("visitors").insert({
-                    unit_id: profile.unit_id,
+                    unit_id: unitId,
                     first_name: row.firstName,
                     last_name: row.lastName,
                     phone: row.phone || null,

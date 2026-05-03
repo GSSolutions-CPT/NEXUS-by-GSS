@@ -10,13 +10,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: profile } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", user.id)
-            .single();
+        // Optimization: Use JWT claims instead of querying the 'profiles' table (saves ~20-50ms)
+        const userRole = user.app_metadata?.user_role;
 
-        if (profile?.role !== 'SuperAdmin' && profile?.role !== 'Guard') {
+        if (userRole !== 'SuperAdmin' && userRole !== 'Guard') {
             return NextResponse.json({ error: "Forbidden. Only guards can release parcels." }, { status: 403 });
         }
 

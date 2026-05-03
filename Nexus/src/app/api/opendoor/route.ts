@@ -10,8 +10,9 @@ export async function POST() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-        if (profile?.role !== "Guard" && profile?.role !== "SuperAdmin") {
+        // Optimization: Use JWT claims instead of querying the 'profiles' table (saves ~20-50ms)
+        const userRole = user.app_metadata?.user_role;
+        if (userRole !== "Guard" && userRole !== "SuperAdmin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

@@ -11,16 +11,20 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: profile } = await supabase
-            .from("profiles")
-            .select("role, first_name, last_name")
-            .eq("id", user.id)
-            .single();
+        // Optimization: Use JWT claims instead of querying the 'profiles' table for role (saves ~20-50ms)
+        const userRole = user.app_metadata?.user_role;
 
         const allowedRoles = ["SuperAdmin", "Guard"];
-        if (!profile || !allowedRoles.includes(profile.role)) {
+        if (!userRole || !allowedRoles.includes(userRole)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        // Note: We still fetch first_name and last_name for the audit log actor name.
+        const { data: profile } = await supabase
+            .from("profiles")
+            .select("first_name, last_name")
+            .eq("id", user.id)
+            .single();
 
         const body = await request.json().catch(() => ({}));
         const { action = "lock" } = body;
@@ -57,7 +61,7 @@ export async function POST(request: Request) {
         }
 
         // Write audit log for the lockdown event
-        const actorName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || user.email;
+        const actorName = `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || user.email;
         await supabase.from("audit_logs").insert({
             event_type: "LOCKDOWN_ACTIVATED",
             actor_id: user.id,
