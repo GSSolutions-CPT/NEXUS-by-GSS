@@ -108,7 +108,7 @@ export default function GuestPassPage({ params }: { params: Promise<{ id: string
             if (!res.ok) throw new Error("Failed to redact data");
             setRedactSuccess(true);
             setPass(prev => prev ? { ...prev, first_name: "[REDACTED]", last_name: "[REDACTED]", status: "Revoked" } : null);
-        } catch (err) {
+        } catch {
             alert("An error occurred. Please contact the property manager.");
         } finally {
             setRedacting(false);

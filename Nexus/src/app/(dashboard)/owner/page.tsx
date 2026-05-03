@@ -354,6 +354,7 @@ export default function OwnerDashboardPage() {
                         <ul className="space-y-2">
                             {[
                                 { href: "/owner/visitors", label: "Active Passes" },
+                                { href: "/owner/qr-code", label: "Access QR Code" },
                                 { href: "/owner/invite", label: "Invite a Visitor" },
                                 { href: "/owner/logs", label: "Access Logs" },
                                 { href: "/owner/request", label: "Request NFC Tag" },

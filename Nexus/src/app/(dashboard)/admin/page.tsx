@@ -69,7 +69,6 @@ export default function AdminDashboardPage() {
         }
     }, []);
 
-    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         const init = async () => {
             fetchStats();
@@ -77,7 +76,6 @@ export default function AdminDashboardPage() {
         };
         init();
     }, [fetchStats, checkBridge]);
-    /* eslint-enable react-hooks/set-state-in-effect */
 
     const handleBroadcast = async () => {
         if (!broadcastMsg.trim()) return;
@@ -269,6 +267,7 @@ export default function AdminDashboardPage() {
                             {[
                                 { href: "/admin/users", label: "Identity & Access" },
                                 { href: "/admin/units", label: "Premises & Units" },
+                                { href: "/admin/qr-codes", label: "QR Access Codes" },
                                 { href: "/admin/logs", label: "Security Forensics" },
                             ].map(({ href, label }) => (
                                 <li key={href}>

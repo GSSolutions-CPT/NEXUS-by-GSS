@@ -3,6 +3,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 
+interface GroupAdminUser {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    unit_id: string | null;
+    unit_name: string | null;
+}
+
 interface AccessGroup {
     id: number;
     name: string;
@@ -38,6 +47,15 @@ export default function UnitsManagementPage() {
     const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+    // Reassignment modal state
+    const [showReassignModal, setShowReassignModal] = useState(false);
+    const [reassignUnit, setReassignUnit] = useState<Unit | null>(null);
+    const [availableOwners, setAvailableOwners] = useState<GroupAdminUser[]>([]);
+    const [selectedOwnerId, setSelectedOwnerId] = useState("");
+    const [regenerateQR, setRegenerateQR] = useState(false);
+    const [reassigning, setReassigning] = useState(false);
+    const [ownersLoading, setOwnersLoading] = useState(false);
 
     const supabase = createClient();
 
@@ -124,6 +142,63 @@ export default function UnitsManagementPage() {
         setShowModal(true);
         setError(null);
         setSuccessMsg(null);
+    };
+
+    // --- Owner Reassignment ---
+    const openReassignModal = async (unit: Unit) => {
+        setReassignUnit(unit);
+        setSelectedOwnerId("");
+        setRegenerateQR(false);
+        setShowReassignModal(true);
+        setOwnersLoading(true);
+        try {
+            const res = await fetch("/api/admin/users");
+            const json = await res.json();
+            if (res.ok && json.users) {
+                // Show all GroupAdmins (owners) as candidates
+                const owners: GroupAdminUser[] = json.users
+                    .filter((u: Record<string, unknown>) => u.role === "GroupAdmin")
+                    .map((u: Record<string, unknown>) => ({
+                        id: u.id,
+                        first_name: u.first_name,
+                        last_name: u.last_name,
+                        email: u.email,
+                        unit_id: u.unit_id,
+                        unit_name: u.unit_name,
+                    }));
+                setAvailableOwners(owners);
+            }
+        } catch { /* non-critical */ } finally {
+            setOwnersLoading(false);
+        }
+    };
+
+    const handleReassign = async () => {
+        if (!reassignUnit || !selectedOwnerId) return;
+        setReassigning(true);
+        setError(null);
+        try {
+            const res = await fetch("/api/admin/reassign-owner", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    unit_id: reassignUnit.id,
+                    new_owner_id: selectedOwnerId,
+                    regenerate_qr: regenerateQR,
+                }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error);
+            setSuccessMsg(json.message);
+            setShowReassignModal(false);
+            setReassignUnit(null);
+            fetchUnits();
+            setTimeout(() => setSuccessMsg(null), 5000);
+        } catch (err: unknown) {
+            if (err instanceof Error) setError(err.message);
+        } finally {
+            setReassigning(false);
+        }
     };
 
     const resetModal = () => {
@@ -311,6 +386,13 @@ export default function UnitsManagementPage() {
                                             <td className="p-4 text-right pr-6 whitespace-nowrap">
                                                 <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                                                     <button
+                                                        onClick={() => openReassignModal(unit)}
+                                                        className="p-2 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 transition-all border border-transparent hover:border-amber-500/20"
+                                                        title="Reassign owner"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                                                    </button>
+                                                    <button
                                                         onClick={() => openEditModal(unit)}
                                                         className="p-2 rounded-lg text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 transition-all border border-transparent hover:border-sky-500/20"
                                                         title="Edit unit"
@@ -423,6 +505,118 @@ export default function UnitsManagementPage() {
                                         <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                     )}
                                     {isSubmitting ? (isEditMode ? "Saving..." : "Creating...") : (isEditMode ? "Save Changes" : "Create Unit")}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Owner Reassignment Modal */}
+            {showReassignModal && reassignUnit && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setShowReassignModal(false)} />
+
+                    <div className="relative bg-slate-900 border border-slate-700/80 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-lg p-7 space-y-6 animate-in zoom-in-95 fade-in duration-300 overflow-hidden">
+                        <div className="absolute -top-40 -right-40 w-80 h-80 bg-amber-500/10 rounded-full blur-[80px] pointer-events-none" />
+
+                        <div className="relative">
+                            <div className="flex items-center justify-between mb-2">
+                                <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-300">
+                                    Reassign Owner
+                                </h2>
+                                <button onClick={() => setShowReassignModal(false)} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all" title="Close">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+
+                            {/* Current unit info */}
+                            <div className="mt-4 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center">
+                                        <span className="font-bold text-white text-sm">{reassignUnit.name}</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-white">{reassignUnit.name}</p>
+                                        <p className="text-xs text-slate-400">
+                                            {reassignUnit.type}
+                                            {reassignUnit.owner
+                                                ? ` — Current: ${reassignUnit.owner.first_name} ${reassignUnit.owner.last_name}`
+                                                : " — No owner assigned"}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* New owner selector */}
+                            <div className="mt-5">
+                                <label className="block text-sm font-semibold text-slate-300 mb-2">New Owner *</label>
+                                {ownersLoading ? (
+                                    <div className="flex items-center gap-2 py-3">
+                                        <div className="w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+                                        <span className="text-sm text-slate-400">Loading users...</span>
+                                    </div>
+                                ) : availableOwners.length === 0 ? (
+                                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-sm text-amber-400">
+                                        No GroupAdmin users found. Create an owner account first via User Management.
+                                    </div>
+                                ) : (
+                                    <select
+                                        value={selectedOwnerId}
+                                        onChange={e => setSelectedOwnerId(e.target.value)}
+                                        className="w-full h-11 px-4 rounded-xl bg-slate-950/50 border border-slate-700/80 text-white text-sm focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
+                                    >
+                                        <option value="">Select new owner...</option>
+                                        {availableOwners.map(o => (
+                                            <option key={o.id} value={o.id}>
+                                                {o.first_name} {o.last_name} ({o.email})
+                                                {o.unit_id ? ` — Currently: ${o.unit_name || 'Assigned'}` : ' — Unassigned'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+
+                            {/* Regenerate QR checkbox */}
+                            <div className="mt-5">
+                                <label className="flex items-start gap-3 cursor-pointer group">
+                                    <input
+                                        type="checkbox"
+                                        checked={regenerateQR}
+                                        onChange={e => setRegenerateQR(e.target.checked)}
+                                        className="mt-0.5 w-5 h-5 rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-sky-500/50"
+                                    />
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors">Regenerate QR Code</p>
+                                        <p className="text-xs text-slate-500 mt-0.5">Recommended when a property changes hands. The old QR will stop working immediately.</p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            {/* Warning */}
+                            <div className="mt-5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                                <p className="text-xs text-amber-400">
+                                    <strong>⚠️ This action will:</strong> Remove the previous owner&apos;s access to this unit. The unit&apos;s access groups, QR code{regenerateQR ? ' (new one generated)' : ''}, and all structure will remain intact.
+                                </p>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="mt-8 pt-5 border-t border-slate-800/80 flex justify-end gap-3">
+                                <button
+                                    onClick={() => setShowReassignModal(false)}
+                                    className="px-5 py-2.5 text-sm font-semibold text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleReassign}
+                                    disabled={reassigning || !selectedOwnerId}
+                                    className="px-7 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 text-white font-semibold rounded-xl transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] disabled:shadow-none flex items-center gap-2"
+                                >
+                                    {reassigning && (
+                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    )}
+                                    {reassigning ? 'Transferring...' : 'Transfer Ownership'}
                                 </button>
                             </div>
                         </div>
