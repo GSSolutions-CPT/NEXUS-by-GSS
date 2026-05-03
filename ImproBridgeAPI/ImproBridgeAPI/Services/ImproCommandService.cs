@@ -65,12 +65,29 @@ namespace ImproBridgeAPI.Services
         }
 
         /// <summary>
-        /// Cleanly disconnects from the PortalAPI, closing both the API and socket.
+        /// Cleanly disconnects from the PortalAPI, releasing the session and closing the socket.
+        /// As per Access Portal V5 rules, sessions must be explicitly logged out.
         /// </summary>
         private void Disconnect(PortalAPI api)
         {
             try
             {
+                // Explicitly logout to release the license session (required for V5)
+                // Use reflection to check for the 3-parameter logout overload
+                try
+                {
+                    var logoutMethod = api.GetType().GetMethod("login", new[] { typeof(string), typeof(byte[]), typeof(bool) });
+                    if (logoutMethod != null)
+                    {
+                        _logger.LogDebug("[Impro SDK] Performing explicit session logout.");
+                        logoutMethod.Invoke(api, new object[] { _username, Encoding.UTF8.GetBytes(_password), true });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[Impro SDK] Reflection-based logout failed.");
+                }
+
                 api.disconnect();
                 if (api.socket != null && api.socket.isConnected())
                 {
@@ -79,7 +96,7 @@ namespace ImproBridgeAPI.Services
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "[Impro SDK] Exception during disconnect (non-fatal).");
+                _logger.LogWarning(ex, "[Impro SDK] Exception during disconnect/logout (non-fatal).");
             }
         }
 
@@ -100,6 +117,10 @@ namespace ImproBridgeAPI.Services
             return "portal-authenticated";
         }
 
+        /// <summary>
+        /// This method is a no-op for logging purposes; synchronization is handled by SDK-specific methods like SyncUser and AssignAccessGroup.
+        /// </summary>
+        [Obsolete("Use SDK-specific methods like SyncUser and AssignAccessGroup instead.")]
         public bool PerformAction(string xmlCommand, string token)
         {
             var api = ConnectAndLogin();
@@ -107,7 +128,7 @@ namespace ImproBridgeAPI.Services
 
             try
             {
-                _logger.LogInformation("[Impro SDK] Executing XML command payload ({Length} chars)", xmlCommand.Length);
+                _logger.LogInformation("[Impro SDK] Logging XML command payload ({Length} chars)", xmlCommand.Length);
 
                 // The PortalAPI SDK's saveOrUpdate and findByHsql handle most DB operations.
                 // For raw XML protocol commands (like insertMasterWithTag), we use the XML
@@ -151,7 +172,17 @@ namespace ImproBridgeAPI.Services
                     try
                     {
                         var ag = (accessGroup)results[i];
-                        groups.Add(new { Id = ag.id, Name = ag.name });
+
+                        // V5 compatibility: prefer nameOriginal if available via reflection
+                        string agName = ag.name;
+                        try
+                        {
+                            var prop = ag.GetType().GetProperty("nameOriginal");
+                            if (prop != null) agName = prop.GetValue(ag)?.ToString() ?? ag.name;
+                        }
+                        catch { }
+
+                        groups.Add(new { Id = ag.id, Name = agName });
                     }
                     catch (InvalidCastException)
                     {
@@ -277,11 +308,19 @@ namespace ImproBridgeAPI.Services
                             for (int i = 0; i < tagTypes.Length; i++)
                             {
                                 var ttItem = (tagType)tagTypes[i];
-                                _logger.LogInformation("[Impro SDK] Available TagType[{Index}]: ID={Id}, Name={Name}", i, ttItem.id, ttItem.name);
-                                if (ttItem.name != null && (
-                                    ttItem.name.IndexOf("Personal Access Code", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                    ttItem.name.IndexOf("PIN", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                    ttItem.name.IndexOf("Code", StringComparison.OrdinalIgnoreCase) >= 0))
+                                string ttName = ttItem.name;
+                                try
+                                {
+                                    var prop = ttItem.GetType().GetProperty("nameOriginal");
+                                    if (prop != null) ttName = prop.GetValue(ttItem)?.ToString() ?? ttItem.name;
+                                }
+                                catch { }
+
+                                _logger.LogInformation("[Impro SDK] Available TagType[{Index}]: ID={Id}, Name={Name}", i, ttItem.id, ttName);
+                                if (ttName != null && (
+                                    ttName.IndexOf("Personal Access Code", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                    ttName.IndexOf("PIN", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                    ttName.IndexOf("Code", StringComparison.OrdinalIgnoreCase) >= 0))
                                 {
                                     targetTagType = ttItem;
                                     break;
@@ -296,7 +335,16 @@ namespace ImproBridgeAPI.Services
                             
                             tt.id = targetTagType.id;
                             tagTypeFound = true;
-                            _logger.LogInformation("[Impro SDK] Using tag type: ID={Id}, Name={Name}", targetTagType.id, targetTagType.name);
+
+                            string finalTtName = targetTagType.name;
+                            try
+                            {
+                                var prop = targetTagType.GetType().GetProperty("nameOriginal");
+                                if (prop != null) finalTtName = prop.GetValue(targetTagType)?.ToString() ?? targetTagType.name;
+                            }
+                            catch { }
+
+                            _logger.LogInformation("[Impro SDK] Using tag type: ID={Id}, Name={Name}", targetTagType.id, finalTtName);
                         }
                         break; // Query succeeded (even if empty)
                     }
@@ -625,6 +673,30 @@ namespace ImproBridgeAPI.Services
                     {
                         var txn = (transack)txnResults[i];
 
+                        string doorName = txn.trlocname ?? "Unknown Door";
+                        if (txn.terminal != null)
+                        {
+                            doorName = txn.terminal.name;
+                            try
+                            {
+                                var prop = txn.terminal.GetType().GetProperty("nameOriginal");
+                                if (prop != null) doorName = prop.GetValue(txn.terminal)?.ToString() ?? txn.terminal.name;
+                            }
+                            catch { }
+                        }
+
+                        string eventName = "Unknown";
+                        if (txn.@event != null)
+                        {
+                            eventName = txn.@event.name;
+                            try
+                            {
+                                var prop = txn.@event.GetType().GetProperty("nameOriginal");
+                                if (prop != null) eventName = prop.GetValue(txn.@event)?.ToString() ?? txn.@event.name;
+                            }
+                            catch { }
+                        }
+
                         var hwTxn = new HardwareTransaction
                         {
                             Id = int.TryParse(txn.id, out var tid) ? tid : i,
@@ -632,8 +704,8 @@ namespace ImproBridgeAPI.Services
                             MasterName = txn.master != null
                                 ? $"{txn.master.firstName} {txn.master.lastName}"
                                 : "Unknown",
-                            DoorName = txn.terminal?.name ?? txn.trlocname ?? "Unknown Door",
-                            EventType = txn.@event?.name ?? "Unknown",
+                            DoorName = doorName,
+                            EventType = eventName,
                             Timestamp = DateTime.TryParse(txn.datetimeutc, out var parsedDt) ? parsedDt : DateTime.UtcNow,
                         };
 

@@ -119,30 +119,8 @@ namespace ImproBridgeAPI.Controllers
                     _improService.AssignAccessGroup(request.PinCode, groupId, token);
                 }
 
-                // Finally, Build the XML payload modeled exactly after the Postman "insertMasterWithTag" example for final tag linkage
-                string safeFirstName = System.Security.SecurityElement.Escape(request.FirstName);
-                string safeLastName = System.Security.SecurityElement.Escape(request.LastName);
-                string safePinCode = System.Security.SecurityElement.Escape(request.PinCode);
-
-                string xmlPayload = $@"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
-                <protocol id=""82945242"" version=""1.0"">
-                  <dbupdate>
-                    <Master id=""0"" current=""1"" firstName=""{safeFirstName}"" lastName=""{safeLastName}"">
-                     <tag id=""0"" tagCode=""{safePinCode}"" expiryDate=""{request.ExpiryDateTime.Substring(0, 8)}"" expiryTime=""{request.ExpiryDateTime.Substring(8, 6)}"" />
-                    </Master>
-                    <withClause>tags</withClause>
-                  </dbupdate>
-                </protocol>";
-
-                var success = _improService.PerformAction(xmlPayload, token);
-
-                if (success) {
-                    _logger.LogInformation("Successfully pushed Visitor to Hardware");
-                    return Ok(new { Message = "Successfully pushed Visitor to Hardware" });
-                }
-
-                _logger.LogError("Failed to push XML payload to Impro API");
-                return StatusCode(500, "Failed to push to Impro API");
+                _logger.LogInformation("Successfully pushed Visitor to Hardware");
+                return Ok(new { Message = "Successfully pushed Visitor to Hardware" });
             }
             catch (Exception ex)
             {
